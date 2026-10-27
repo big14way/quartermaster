@@ -30,8 +30,9 @@ describe("rule-based extraction", () => {
   });
 
   it("reads a dispute claim", () => {
-    const c = claimByRules("These charges returned stale EURUSD quotes: stl_ab12, stl_cd34 and stl_ab12 again.");
-    expect(c.settlement_ids).toEqual(["stl_ab12", "stl_cd34"]);
+    const tx = `0x${"ab".repeat(32)}`;
+    const c = claimByRules(`These charges returned stale EURUSD quotes: ${tx}, stl_cd34 and ${tx} again.`);
+    expect(c.charges).toEqual([tx, "stl_cd34"]);
     expect(c.claimed_issue).toBe("stale_data");
   });
 });

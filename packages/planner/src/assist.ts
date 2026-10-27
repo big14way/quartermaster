@@ -17,7 +17,8 @@ const InvoiceSchema = z.object({
 export type InvoiceFields = z.infer<typeof InvoiceSchema>;
 
 const ClaimSchema = z.object({
-  settlement_ids: z.array(z.string()),
+  /** Transaction hashes (0x…) or settlement ids (stl_…) of the disputed charges. */
+  charges: z.array(z.string()),
   claimed_issue: z.enum(["stale_data", "wrong_data", "not_delivered", "duplicate_charge", "other"]),
   summary: z.string(),
 });
@@ -66,7 +67,7 @@ async function extract<T>(
 
 const INVOICE_SYSTEM = `Extract the payment fields from this supplier invoice exactly as printed. amount is the total due as a plain decimal with no currency symbol or thousands separator. due_date is ISO yyyy-mm-dd. iban has no spaces. payment_reference is the reference the vendor asks to quote. If a field is missing, return an empty string for it. Do not infer or correct anything.`;
 
-const CLAIM_SYSTEM = `A customer's agent is disputing charges for a paid data API. Extract the settlement ids it disputes (strings beginning with "stl_"), classify the issue it claims, and summarise the claim in one sentence. Only list ids that appear in the text. You do not decide refunds.`;
+const CLAIM_SYSTEM = `A customer's agent is disputing charges for a paid data API. List every charge it disputes, as written: transaction hashes (0x followed by 64 hex characters) or settlement ids (beginning with "stl_"). Classify the issue it claims and summarise the claim in one sentence. Only list references that appear in the text. You do not decide refunds.`;
 
 export function extractInvoice(text: string, recorder?: LlmRecorder) {
   return extract("invoice", INVOICE_SYSTEM, text, InvoiceSchema, invoiceByRules, recorder);
@@ -93,7 +94,7 @@ export function invoiceByRules(text: string): InvoiceFields {
 }
 
 export function claimByRules(text: string): ClaimFields {
-  const ids = [...new Set(text.match(/stl_[0-9a-f]+/g) ?? [])];
+  const ids = [...new Set(text.match(/0x[0-9a-fA-F]{64}|stl_[0-9a-f]+/g) ?? [])];
   const issue = /stale|old|outdated|lag/i.test(text)
     ? "stale_data"
     : /wrong|incorrect|bad data/i.test(text)
@@ -103,5 +104,5 @@ export function claimByRules(text: string): ClaimFields {
         : /twice|duplicate/i.test(text)
           ? "duplicate_charge"
           : "other";
-  return { settlement_ids: ids, claimed_issue: issue, summary: text.split("\n").find((l) => l.trim())?.trim().slice(0, 200) ?? "" };
+  return { charges: ids, claimed_issue: issue, summary: text.split("\n").find((l) => l.trim())?.trim().slice(0, 200) ?? "" };
 }

@@ -45,16 +45,17 @@ export function mountSupport(app: Express, ctx: AgentContext) {
   app.post("/disputes", requireInternal, route(async (req) => {
     const { claimId, buyer, principal, text } = req.body as { claimId: string; buyer: string; principal: Address; text: string };
     const claim = await readClaim(text, ctx.recorder);
-    report("support", "dispute.read", { claimId, buyer, issue: claim.fields.claimed_issue, ids: claim.fields.settlement_ids, summary: claim.fields.summary, source: claim.source });
+    report("support", "dispute.read", { claimId, buyer, issue: claim.fields.claimed_issue, charges: claim.fields.charges, summary: claim.fields.summary, source: claim.source });
     const status = await ctx.status(true);
     const decisions: Decision[] = [];
 
-    for (const id of claim.fields.settlement_ids) {
-      const sale = await getJson<SaleRecord>(`${url("seller")}/sales/${id}`).catch(() => undefined);
+    for (const ref of claim.fields.charges) {
+      const sale = await getJson<SaleRecord>(`${url("seller")}/sales/${ref}`).catch(() => undefined);
       if (!sale) {
-        decisions.push({ settlementId: id, decision: "rejected", why: "no such charge in our sales records" });
+        decisions.push({ settlementId: ref, decision: "rejected", why: "no such charge in our sales records" });
         continue;
       }
+      const id = sale.settlementId;
       if (sale.payer.toLowerCase() !== principal.toLowerCase()) {
         decisions.push({ settlementId: id, decision: "rejected", why: "the charge was paid by another account" });
         continue;
