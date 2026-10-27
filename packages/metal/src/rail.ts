@@ -58,7 +58,8 @@ export interface Payer {
 /** Owner-side operations. Only the keyring process ever constructs one of these. */
 export interface OwnerRail {
   createAccount(): Promise<{ account: Address; owner: Address; tx?: string }>;
-  fund(address: Address): Promise<{ tx?: string; amount?: Cents; note?: string }>;
+  /** Testnet faucet. `amount` is honoured by the simnet; the live faucet grants a fixed amount. */
+  fund(address: Address, amount?: Cents): Promise<{ tx?: string; amount?: Cents; note?: string }>;
   balanceOf(address: Address): Promise<Cents>;
   createCredential(input: {
     principal: Address;

@@ -95,12 +95,25 @@ importers:
 
   packages/sim:
     dependencies:
+      '@qm/airwallex':
+        specifier: workspace:*
+        version: link:../airwallex
       '@qm/core':
         specifier: workspace:*
         version: link:../core
       '@qm/metal':
         specifier: workspace:*
         version: link:../metal
+      decimal.js:
+        specifier: 10.6.0
+        version: 10.6.0
+      express:
+        specifier: 5.3.0
+        version: 5.3.0
+    devDependencies:
+      '@types/express':
+        specifier: 5.0.6
+        version: 5.0.6
 
 packages:
 
