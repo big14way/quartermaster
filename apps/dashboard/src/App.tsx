@@ -26,7 +26,17 @@ function Header({ meta, live, events }: { meta?: Meta; live?: Live; events: QmEv
         </div>
       </div>
       <div className="meta">
-        {meta && <span className={`badge ${meta.mode === "live" ? "live" : "sim"}`}>{meta.replay ? "REPLAY" : meta.mode === "live" ? "LIVE · Metal testnet + Airwallex sandbox" : "SIMULATED · simnet + Airwallex simulator"}</span>}
+        {meta && (
+          <span className={`badge ${meta.mode === "live" ? "live" : "sim"}`}>
+            {meta.replay
+              ? "REPLAY"
+              : meta.mode === "offline"
+                ? "SIMULATED · simnet + Airwallex simulator"
+                : meta.airwallex === "sim"
+                  ? "LIVE Metal testnet · Airwallex SIMULATED"
+                  : "LIVE · Metal testnet + Airwallex sandbox"}
+          </span>
+        )}
         <span className="dim mono">block {live?.block ?? "—"}</span>
         <span className="dim mono" title={last?.hash}>
           {events.length} events · head {short(last?.hash, 6, 4)}

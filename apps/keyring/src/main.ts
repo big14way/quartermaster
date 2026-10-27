@@ -6,6 +6,7 @@ import {
   KIT,
   QmError,
   ROLES,
+  airwallexMode,
   canonicalHash,
   env,
   fromCents,
@@ -341,7 +342,7 @@ app.get("/approve/:id", (req, res) => {
     res.status(403).type("html").send(resultPage("Link not valid", "This approval link is not valid for any open plan."));
     return;
   }
-  res.type("html").send(approvalPage(p.record, p.hash, p.status, p.approvalReasons, t, mode()));
+  res.type("html").send(approvalPage(p.record, p.hash, p.status, p.approvalReasons, t, mode(), airwallexMode()));
 });
 
 app.post("/approve/:id", async (req, res, next) => {

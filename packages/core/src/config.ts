@@ -20,6 +20,16 @@ export function mode(): Mode {
   return m;
 }
 
+/**
+ * Airwallex can run on the simulator while Metal is live (no sandbox keys yet). Defaults to
+ * following QM_MODE.
+ */
+export function airwallexMode(): "sim" | "live" {
+  const v = optionalEnv("QM_AIRWALLEX");
+  if (v === "sim" || v === "live") return v;
+  return mode() === "offline" ? "sim" : "live";
+}
+
 export const DEFAULT_PORTS = {
   controller: 4000,
   feedA: 4101,

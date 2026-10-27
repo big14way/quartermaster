@@ -29,19 +29,24 @@ if (!headless && !existsSync(join(root, "apps", "dashboard", "dist", "index.html
 
 if (!args.has("--keep")) rmSync(join(root, "var"), { recursive: true, force: true });
 
+const dotenv = loadDotEnv(root);
+// Live Metal can run before the Airwallex sandbox account is approved: without sandbox keys
+// the Airwallex side stays on the simulator, and every surface says so.
+const awxSim = !live || dotenv.QM_AIRWALLEX === "sim" || process.env.QM_AIRWALLEX === "sim" || !(dotenv.AIRWALLEX_API_KEY || process.env.AIRWALLEX_API_KEY);
 const runId = `${live ? "live" : "offline"}-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}`;
 const pin = String(randomInt(100000, 999999));
 const env: NodeJS.ProcessEnv = {
   ...process.env,
-  ...loadDotEnv(root),
+  ...dotenv,
   QM_MODE: live ? "live" : "offline",
+  QM_AIRWALLEX: awxSim ? "sim" : "live",
   QM_HOME: root,
   QM_RUN_ID: runId,
   QM_INTERNAL_TOKEN: randomBytes(16).toString("hex"),
   QM_APPROVAL_SECRET: randomBytes(32).toString("hex"),
   QM_FOUNDER_PIN: pin,
   QM_SELLER_SIGNING_KEY: randomBytes(32).toString("hex"),
-  ...(live ? {} : { AIRWALLEX_WEBHOOK_SECRET: `whsec_${randomBytes(12).toString("hex")}` }),
+  ...(awxSim ? { AIRWALLEX_WEBHOOK_SECRET: `whsec_${randomBytes(12).toString("hex")}` } : {}),
   FORCE_COLOR: "1",
 };
 // The founder PIN belongs to the keyring alone; every other process starts without it.
@@ -77,10 +82,11 @@ process.on("SIGINT", () => shutdown(130));
 const app = (name: string) => join(root, "apps", name, "src", "main.ts");
 const health = (p: number) => waitForHealth(`http://127.0.0.1:${p}/health`, 40_000);
 
-console.log(`[demo] Quartermaster ${live ? "LIVE (Metal testnet, Airwallex sandbox)" : "offline (simnet + Airwallex simulator, SIMULATED)"} · run ${runId}`);
-if (!live) {
+const label = !live ? "offline (simnet + Airwallex simulator, SIMULATED)" : awxSim ? "LIVE Metal testnet · Airwallex SIMULATED (no sandbox keys in .env)" : "LIVE (Metal testnet, Airwallex sandbox)";
+console.log(`[demo] Quartermaster ${label} · run ${runId}`);
+if (!live || awxSim) {
   start("sim", app("sim"));
-  await Promise.all([health(4700), health(4600)]);
+  await Promise.all([...(live ? [] : [health(4700)]), health(4600)]);
 }
 start("feeds", app("feeds"));
 start("keyring", app("keyring"), [], env);

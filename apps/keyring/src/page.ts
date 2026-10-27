@@ -32,7 +32,7 @@ form{display:grid;gap:12px;margin-top:8px}label{font-size:13px;color:var(--muted
 .banner{border-radius:8px;padding:8px 12px;background:var(--chip);font-size:13px;margin-bottom:16px}
 `;
 
-export function approvalPage(r: ApprovalRecord, hash: string, status: string, reasons: string[], token: string, mode: Mode): string {
+export function approvalPage(r: ApprovalRecord, hash: string, status: string, reasons: string[], token: string, mode: Mode, airwallex: "sim" | "live" = "live"): string {
   const changes = r.mandate_changes
     .map((c) => {
       const capDir = BigInt(String(c.new.cap)) > BigInt(String(c.old.cap)) ? "up" : BigInt(String(c.new.cap)) < BigInt(String(c.old.cap)) ? "down" : "";
@@ -57,7 +57,7 @@ export function approvalPage(r: ApprovalRecord, hash: string, status: string, re
   ];
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Approve plan</title><style>${STYLE}</style></head><body><main>
-${mode === "offline" ? `<div class="banner">SIMULATED: Metal simnet and Airwallex simulator</div>` : ""}
+${mode === "offline" ? `<div class="banner">SIMULATED: Metal simnet and Airwallex simulator</div>` : airwallex === "sim" ? `<div class="banner">LIVE on Metal testnet · Airwallex SIMULATED</div>` : ""}
 <p class="muted mono">Plan ${esc(r.plan_id)} · option ${esc(r.option)} · ${esc(status)}</p>
 <h1>${esc(r.title)}</h1>
 <p class="muted">Moves <b>${usd(r.delta_usdz_cents)}</b> (${esc(r.currency)}) · counterparty <b>${esc(r.counterparty.name)}</b> <span class="mono">${esc(short(r.counterparty.address))}</span> · invoice ${esc(r.invoice_ref)}</p>

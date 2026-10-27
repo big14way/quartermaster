@@ -4,6 +4,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { AirwallexClient } from "@qm/airwallex";
 import {
   QmError,
+  airwallexMode,
   env,
   homeDir,
   logger,
@@ -46,7 +47,7 @@ export async function paywall(opts: { signedOrders: boolean }): Promise<Paywall>
 }
 
 export function airwallex(): AirwallexClient {
-  if (mode() === "offline") return new AirwallexClient({ baseUrl: url("awxSim"), clientId: "sim-client", apiKey: "sim-key" });
+  if (airwallexMode() === "sim") return new AirwallexClient({ baseUrl: url("awxSim"), clientId: "sim-client", apiKey: "sim-key" });
   return new AirwallexClient({
     baseUrl: env("AIRWALLEX_BASE_URL", "https://api-demo.airwallex.com"),
     clientId: env("AIRWALLEX_CLIENT_ID"),

@@ -20,6 +20,7 @@ export interface Step {
 
 export interface Meta {
   mode: "offline" | "live";
+  airwallex: "sim" | "live";
   runId: string;
   replay: boolean;
   steps: Step[];

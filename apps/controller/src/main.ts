@@ -7,6 +7,7 @@ import {
   EventLog,
   KIT,
   ROLES,
+  airwallexMode,
   env,
   getJson,
   logger,
@@ -143,6 +144,7 @@ app.post("/events", requireInternal, route((req) => {
 
 app.get("/api/meta", route(() => ({
   mode: mode(),
+  airwallex: airwallexMode(),
   runId,
   replay: !!replayFile,
   steps: STEPS,
