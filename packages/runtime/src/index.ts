@@ -1,10 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { AirwallexClient } from "@qm/airwallex";
 import {
   QmError,
   env,
+  homeDir,
   logger,
   mode,
   optionalEnv,
@@ -34,6 +35,7 @@ export function metalRail(opts: { ownerKeyFile?: string; home: string }): Rail {
     faucetUrl: optionalEnv("METAL_FAUCET_URL"),
     ownerKeyFile: opts.ownerKeyFile,
     home: opts.home,
+    funderKeyFile: optionalEnv("QM_FUNDER_KEY") ? resolve(homeDir(), optionalEnv("QM_FUNDER_KEY")!) : undefined,
   });
 }
 

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { env, fromCents } from "@qm/core";
 import { LiveMetal, probeOffer } from "@qm/metal";
+import { loadDotEnv } from "./dotenv";
 
 // Smoke test for live mode, run once Metal testnet access is set up (.env with
 // METAL_RPC_URL). It exercises the CLI commands Quartermaster parses and prints the raw
@@ -10,6 +11,7 @@ import { LiveMetal, probeOffer } from "@qm/metal";
 //   pnpm live:check
 
 const root = resolve(import.meta.dirname, "..");
+Object.assign(process.env, { ...loadDotEnv(root), ...process.env });
 const home = join(root, "var", "live-check");
 mkdirSync(home, { recursive: true });
 const owner = join(home, "owner-key.json");
@@ -18,6 +20,7 @@ const cli = new LiveMetal({
   facilitatorUrl: env("METAL_FACILITATOR_URL", "https://x402-testnet.metalntwx.com/x402/facilitator"),
   ownerKeyFile: owner,
   home,
+  funderKeyFile: process.env.QM_FUNDER_KEY ? resolve(root, process.env.QM_FUNDER_KEY) : undefined,
 });
 
 function show(title: string, value: unknown) {
@@ -30,7 +33,7 @@ show("Metal demo seller offer", { status: demo.status, price: demo.offer && from
 const acct = await cli.createAccount();
 show("account create", acct);
 show("balance", fromCents(await cli.balanceOf(acct.account)));
-if ((await cli.balanceOf(acct.account)) === 0n) show("fund", await cli.fund(acct.account));
+if ((await cli.balanceOf(acct.account)) === 0n) show("fund", await cli.fund(acct.account, 100n));
 
 const credPath = join(home, "probe.json");
 if (!existsSync(credPath)) {

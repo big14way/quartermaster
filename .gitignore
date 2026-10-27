@@ -25,3 +25,6 @@ runs/*.jsonl
 !runs/sample-offline.jsonl
 
 .DS_Store
+
+# live setup key that pays for the RPC endpoint (testnet)
+.metal/

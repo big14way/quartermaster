@@ -31,3 +31,26 @@ describe("metal-agent output", () => {
     expect(parseSpent(lines.get("spent")![0]!)).toEqual({ spent: 650n, budget: 1000n });
   });
 });
+
+// Captured from metal-agent 0.3.3 on Metal testnet (mandate status).
+const STATUS = `mandate 0x24cfed6c2b65e2997365f2793c8a9f88ece547077063b04a50277e659f9686aa
+description live-check probe
+principal 0x122856515C1bfcBC0dCC8bf86b842F8FA7b6a64C
+token 0x000000000000000000000000000000000000B5d5
+per-payment-cap 0.02 *USDZ
+budget 0.05 *USDZ until expiry
+payees any
+account-type MetalAccount
+bound yes
+revoked no
+spent 0 *USDZ of 0.05 *USDZ
+payments 0`;
+
+describe("metal-agent status from testnet", () => {
+  it("reads the per-payment cap, spend and an open payee list", () => {
+    const lines = parseNameValue(STATUS);
+    expect(lines.get("per-payment-cap")).toEqual(["0.02 *USDZ"]);
+    expect(lines.get("payees")).toEqual(["any"]);
+    expect(parseSpent(lines.get("spent")![0]!)).toEqual({ spent: 0n, budget: 5n });
+  });
+});

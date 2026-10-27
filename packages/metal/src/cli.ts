@@ -1,9 +1,12 @@
 import { spawn } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { createPublicClient, erc20Abi, http, type Hash } from "viem";
+import { createPublicClient, createWalletClient, erc20Abi, http, type Hash, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { writeMip20Contract } from "@metalntwx/metal-ts";
 import { verifyMandatePayment } from "@metalntwx/metal-pay/mandates";
-import { QmError, baseUnitsToCents, fromCents, type Address, type Cents, type MandateStatus, type MandateTerms } from "@qm/core";
+import { QmError, baseUnitsToCents, centsToBaseUnits, fromCents, type Address, type Cents, type MandateStatus, type MandateTerms } from "@qm/core";
 import {
   USDZ_ADDRESS,
   type AgentRail,
@@ -26,7 +29,18 @@ export interface LiveMetalConfig {
   ownerKeyFile?: string;
   /** Working directory for the CLI. Its HOME is set here too, so pull records stay per agent. */
   home: string;
+  /**
+   * A funded testnet key that pays for setup instead of the faucet (one grant a minute and
+   * ten a day per IP). With it, funding sends exact amounts by plain USDZ transfer.
+   */
+  funderKeyFile?: string;
 }
+
+const isRateLimited = (err: unknown) => /client_rate_limited|rate limit/i.test((err as Error).message ?? "");
+const retryAfter = (err: unknown) => {
+  const m = /retry in (\d+)\s*s|(\d+)\s*s/.exec((err as Error).message ?? "");
+  return Number(m?.[1] ?? m?.[2] ?? 60);
+};
 
 export interface CliRun {
   code: number;
@@ -51,6 +65,11 @@ export function parseNameValue(stdout: string): Map<string, string[]> {
 
 function first(lines: Map<string, string[]>, name: string): string | undefined {
   return lines.get(name)?.[0];
+}
+
+/** metal-agent appends notes such as " (created)" to file paths. */
+function pathOf(value: string | undefined): string | undefined {
+  return value?.replace(/\s+\([^)]*\)\s*$/, "").trim();
 }
 
 function need(lines: Map<string, string[]>, name: string, ctx: string): string {
@@ -116,8 +135,45 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
 
   // ---- owner side ------------------------------------------------------------------
 
+  /** Plain USDZ transfer from the funder key, waited to a receipt. */
+  async transferFromFunder(to: Address, amount: Cents): Promise<string> {
+    const key = JSON.parse(readFileSync(this.cfg.funderKeyFile!, "utf8")) as { privateKey: Hex };
+    const transport = http(this.cfg.rpcUrl);
+    const publicClient = createPublicClient({ transport });
+    const walletClient = createWalletClient({ account: privateKeyToAccount(key.privateKey), transport });
+    const hash = await writeMip20Contract({
+      walletClient,
+      publicClient,
+      abi: erc20Abi,
+      address: USDZ_ADDRESS,
+      functionName: "transfer",
+      args: [to, centsToBaseUnits(amount)],
+      gasToken: USDZ_ADDRESS,
+      gasFallback: 200_000n,
+    });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") throw new QmError("transfer_failed", `funding transfer ${hash} reverted`);
+    return hash;
+  }
+
   async createAccount() {
-    const r = await this.run(["account", "create", "--out", this.ownerKey(), ...this.net()]);
+    const owner = this.ownerKey();
+    if (this.cfg.funderKeyFile) {
+      // Give the owner key its gas first, so account create never needs the faucet.
+      const address = existsSync(owner) ? (JSON.parse(readFileSync(owner, "utf8")) as { address: Address }).address : await this.createKey(owner);
+      if ((await this.balanceOf(address)) === 0n) await this.transferFromFunder(address, 10n);
+    }
+    const args = existsSync(owner) ? ["account", "create", "--key", owner, ...this.net()] : ["account", "create", "--out", owner, ...this.net()];
+    let r: CliRun | undefined;
+    for (let attempt = 1; !r; attempt++) {
+      try {
+        r = await this.run(args);
+      } catch (err) {
+        if (!isRateLimited(err) || attempt >= 4) throw err;
+        await new Promise((res) => setTimeout(res, (retryAfter(err) + 2) * 1000));
+        if (existsSync(owner)) args.splice(0, args.length, "account", "create", "--key", owner, ...this.net());
+      }
+    }
     return {
       account: need(r.lines, "account", "account create") as Address,
       owner: need(r.lines, "owner", "account create") as Address,
@@ -125,18 +181,23 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
     };
   }
 
-  /** Faucet grant. The faucet allows one grant a minute per client; wait it out and retry. */
-  async fund(address: Address) {
+  /**
+   * Fund an address: an exact transfer from the funder key when there is one, otherwise a
+   * faucet grant (one a minute per client; waited out and retried).
+   */
+  async fund(address: Address, amount?: Cents) {
+    if (this.cfg.funderKeyFile) {
+      const amt = amount ?? 100n;
+      return { tx: await this.transferFromFunder(address, amt), amount: amt };
+    }
     for (let attempt = 1; ; attempt++) {
       try {
         const r = await this.run(["fund", address, ...this.net(false)]);
         const funded = first(r.lines, "funded");
         return { tx: first(r.lines, "transaction"), amount: funded ? usdzToCents(funded) : undefined, note: r.stdout.trim() };
       } catch (err) {
-        const msg = (err as Error).message;
-        if (!/client_rate_limited|rate limit/i.test(msg) || attempt >= 4) throw err;
-        const wait = Number(/(\d+)\s*s/.exec(msg)?.[1] ?? 60);
-        await new Promise((r) => setTimeout(r, (wait + 2) * 1000));
+        if (!isRateLimited(err) || attempt >= 4) throw err;
+        await new Promise((r) => setTimeout(r, (retryAfter(err) + 2) * 1000));
       }
     }
   }
@@ -179,10 +240,10 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
       mandateId: need(r.lines, "mandate", "credential create"),
       principal: input.principal,
       terms: input.terms,
-      credentialPath: first(r.lines, "credential") ?? input.out,
-      mandateKeyPath: need(r.lines, "mandate-key-file", "credential create"),
-      issuerKeyPath: first(r.lines, "issuer-key-file"),
-      issuerPublicPath: need(r.lines, "issuer-public-file", "credential create"),
+      credentialPath: pathOf(first(r.lines, "credential")) ?? input.out,
+      mandateKeyPath: pathOf(need(r.lines, "mandate-key-file", "credential create"))!,
+      issuerKeyPath: pathOf(first(r.lines, "issuer-key-file")),
+      issuerPublicPath: pathOf(need(r.lines, "issuer-public-file", "credential create"))!,
     };
     return info;
   }
@@ -220,15 +281,18 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
     const r = await this.run(["mandate", "status", "--credential", credentialPath, ...this.net()]);
     const spentLine = first(r.lines, "spent");
     const sb = spentLine ? parseSpent(spentLine) : { spent: 0n, budget: usdzToCents(first(r.lines, "budget") ?? "0") };
-    const payees = r.lines.get("payee")?.map((p) => p.split(/[ ,]/)[0] as Address) ?? null;
+    // "payees any", or the listed addresses on "payees" / "payee" lines.
+    const listed = [...(r.lines.get("payees") ?? []), ...(r.lines.get("payee") ?? [])]
+      .flatMap((v) => v.match(/0x[0-9a-fA-F]{40}/g) ?? [])
+      .map((a) => a as Address);
     return {
       mandateId: need(r.lines, "mandate", "status"),
       bound: first(r.lines, "bound") !== "no",
       revoked: (first(r.lines, "revoked") ?? "no") !== "no",
       spent: sb.spent,
       budget: sb.budget,
-      cap: usdzToCents(first(r.lines, "cap") ?? "0"),
-      payees: payees && payees.length ? payees : null,
+      cap: usdzToCents((first(r.lines, "per-payment-cap") ?? first(r.lines, "cap") ?? "0").split(/\s+/)[0]!),
+      payees: listed.length ? listed : null,
       payments: Number(first(r.lines, "payments") ?? "0"),
     };
   }
@@ -284,10 +348,18 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
       const m = /^(\d+)\s+(pass|fail|skipped):\s*(.*)$/.exec(s);
       return { step: Number(m?.[1] ?? 0), outcome: (m?.[2] ?? "fail") as "pass" | "fail" | "skipped", title: m?.[3] ?? s };
     });
-    const payments = [...(r.lines.get("payment") ?? []), ...(r.lines.get("refusal") ?? [])].map((p) => {
-      const tx = /0x[0-9a-fA-F]{64}/.exec(p)?.[0] ?? p;
-      return { kind: (r.lines.get("refusal") ?? []).includes(p) ? ("refusal" as const) : ("payment" as const), tx, reason: refusalCode(p) };
-    });
+    // "payment <tx> block N: 0.01 *USDZ to 0x…, nonce 0x…" and "refusal <tx> …: <reason>"
+    const parse = (line: string, kind: "payment" | "refusal") => {
+      const amount = /([\d.]+)\s*\*?USDZ/.exec(line)?.[1];
+      return {
+        kind,
+        tx: /0x[0-9a-fA-F]{64}/.exec(line)?.[0] ?? line,
+        to: / to (0x[0-9a-fA-F]{40})/.exec(line)?.[1],
+        amount: amount ? usdzToCents(amount) : undefined,
+        reason: kind === "refusal" ? refusalCode(line) : undefined,
+      };
+    };
+    const payments = [...(r.lines.get("payment") ?? []).map((l) => parse(l, "payment")), ...(r.lines.get("refusal") ?? []).map((l) => parse(l, "refusal"))];
     return { verified: first(r.lines, "verified") === "yes", mandateId: first(r.lines, "mandate"), steps, payments, raw: r.stdout };
   }
 

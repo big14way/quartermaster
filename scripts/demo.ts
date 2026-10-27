@@ -1,9 +1,10 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes, randomInt } from "node:crypto";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { getJson, postJson, sleep, waitForHealth, type QmEvent } from "@qm/core";
+import { loadDotEnv } from "./dotenv";
 import { narrate } from "./narrate";
 
 // Starts every Quartermaster process with its own environment, waits for each to be
@@ -21,17 +22,6 @@ const headless = args.has("--headless");
 const root = resolve(import.meta.dirname, "..");
 const tsx = join(createRequire(import.meta.url).resolve("tsx/package.json"), "..", "dist", "cli.mjs");
 
-function loadDotEnv(): Record<string, string> {
-  const f = join(root, ".env");
-  if (!existsSync(f)) return {};
-  const out: Record<string, string> = {};
-  for (const line of readFileSync(f, "utf8").split("\n")) {
-    const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
-    if (m && m[2] !== "") out[m[1]!] = m[2]!.replace(/^["']|["']$/g, "");
-  }
-  return out;
-}
-
 if (!headless && !existsSync(join(root, "apps", "dashboard", "dist", "index.html"))) {
   console.log("[demo] building the dashboard…");
   spawnSync("pnpm", ["--filter", "@qm/dashboard", "build"], { cwd: root, stdio: "inherit" });
@@ -43,7 +33,7 @@ const runId = `${live ? "live" : "offline"}-${new Date().toISOString().replace(/
 const pin = String(randomInt(100000, 999999));
 const env: NodeJS.ProcessEnv = {
   ...process.env,
-  ...loadDotEnv(),
+  ...loadDotEnv(root),
   QM_MODE: live ? "live" : "offline",
   QM_HOME: root,
   QM_RUN_ID: runId,

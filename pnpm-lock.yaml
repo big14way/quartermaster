@@ -228,6 +228,9 @@ importers:
       '@metalntwx/metal-pay':
         specifier: 0.3.4
         version: 0.3.4(@x402/core@2.28.0)(@x402/evm@2.28.0(typescript@5.9.3))(@x402/fetch@2.28.0)(viem@2.54.6(typescript@5.9.3)(zod@3.25.76))
+      '@metalntwx/metal-ts':
+        specifier: 0.3.2
+        version: 0.3.2(viem@2.54.6(typescript@5.9.3)(zod@3.25.76))
       '@qm/core':
         specifier: workspace:*
         version: link:../core
