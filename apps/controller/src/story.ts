@@ -88,8 +88,11 @@ export class Director {
     }
   }
 
-  async runAll() {
-    for (const s of STEPS) if (!this.done.includes(s.id)) await this.run(s.id);
+  /** Run every step not yet done; `from` skips earlier steps when resuming on kept state. */
+  async runAll(from?: StepId) {
+    const start = from ? STEPS.findIndex((s) => s.id === from) : 0;
+    if (start < 0) throw new Error(`no step ${from}`);
+    for (const s of STEPS.slice(start)) if (!this.done.includes(s.id)) await this.run(s.id);
   }
 
   private readonly steps: Record<StepId, () => Promise<void>> = {

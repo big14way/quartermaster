@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { KIT, QmError, logger, postJson, sleep, url, usdz, varDir, type Address } from "@qm/core";
+import { KIT, QmError, logger, requestJson, sleep, url, usdz, varDir, type Address } from "@qm/core";
 import { internalHeaders, jsonApp, metalRail, report, requireInternal, route, serve } from "@qm/runtime";
 import { writeJson } from "@qm/sim";
 
@@ -118,7 +118,13 @@ app.post("/dispute", requireInternal, route(async (req) => {
     ...lines,
   ].join("\n");
   report("buyers", "dispute.filed", { buyer: name, charges: batch.map((r) => r.tx), text });
-  return postJson(`${url("controller")}/api/disputes`, { claimId: `dsp-${Date.now()}`, buyer: name, principal: state.account, text }, internalHeaders());
+  // Support checks every signed order against the chain and pays refunds: minutes on testnet.
+  return requestJson(`${url("controller")}/api/disputes`, {
+    method: "POST",
+    body: { claimId: `dsp-${Date.now()}`, buyer: name, principal: state.account, text },
+    headers: internalHeaders(),
+    timeoutMs: 20 * 60_000,
+  });
 }));
 
 app.get("/info", route(() => ({ account: state.account, buyers: state.buyers.map((b) => ({ name: b.name, mandateId: b.mandateId })), receipts: state.receipts.length })));

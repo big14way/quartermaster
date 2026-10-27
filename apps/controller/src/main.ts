@@ -188,7 +188,7 @@ app.post("/api/reconcile", route(() => {
 app.post("/api/story/:step", route((req) => {
   if (replayFile) throw new Error("this is a replay");
   const step = String(req.params.step);
-  const run = step === "all" ? director.runAll() : director.run(step as StepId);
+  const run = step === "all" ? director.runAll(req.query.from ? (String(req.query.from) as StepId) : undefined) : director.run(step as StepId);
   run.catch((err) => log.error(`story ${step} failed:`, err.message ?? err));
   return { accepted: step };
 }));

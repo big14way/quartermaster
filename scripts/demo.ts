@@ -3,7 +3,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { getJson, postJson, sleep, waitForHealth, type QmEvent } from "@qm/core";
+import { getJson, postJson, requestJson, sleep, waitForHealth, type QmEvent } from "@qm/core";
 import { loadDotEnv } from "./dotenv";
 import { narrate } from "./narrate";
 
@@ -15,6 +15,7 @@ import { narrate } from "./narrate";
 //   pnpm demo --headless      offline, runs the whole story and exits with the reconciliation result
 //   pnpm demo --live          Metal testnet + Airwallex sandbox (needs .env)
 //   pnpm demo --keep          keep var/ state from the last run
+//   pnpm demo --keep --headless --from=disputes   resume the story at a step on the same accounts
 
 const args = new Set(process.argv.slice(2));
 const live = args.has("--live");
@@ -120,7 +121,8 @@ if (!headless) {
 } else {
   let since = 0;
   let approved = false;
-  await postJson(`${controller}/api/story/all`, {});
+  const from = process.argv.find((a) => a.startsWith("--from="))?.slice("--from=".length);
+  await postJson(`${controller}/api/story/all${from ? `?from=${from}` : ""}`, {});
   while (!shuttingDown) {
     const events = await getJson<QmEvent[]>(`${controller}/api/events?since=${since}`).catch(() => [] as QmEvent[]);
     for (const e of events) {
@@ -133,7 +135,12 @@ if (!headless) {
         // The supervisor plays the founder: open the link, enter the PIN.
         await sleep(1200);
         const u = new URL(String(d.approveUrl));
-        await postJson(`${u.origin}${u.pathname}`, { t: u.searchParams.get("t"), pin, approver: "founder (headless demo)", decision: "approve" }).catch((err: Error) =>
+        // The keyring rewrites the mandates before it answers: minutes on testnet.
+        await requestJson(`${u.origin}${u.pathname}`, {
+          method: "POST",
+          body: { t: u.searchParams.get("t"), pin, approver: "founder (headless demo)", decision: "approve" },
+          timeoutMs: 20 * 60_000,
+        }).catch((err: Error) =>
           console.error(`[demo] approval failed: ${err.message}`),
         );
       }
