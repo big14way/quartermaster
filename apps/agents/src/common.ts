@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, watchFile } from "node:fs";
 import type { Express } from "express";
-import { logger, type MandateStatus, type Role } from "@qm/core";
+import { logger, mode, type MandateStatus, type Role } from "@qm/core";
 import type { LlmRecorder } from "@qm/planner";
 import { agentFiles, metalRail, report, route, type Rail } from "@qm/runtime";
 
@@ -12,6 +12,8 @@ export interface AgentContext {
   /** Mandate status, cached briefly and dropped whenever the credential file changes. */
   status(fresh?: boolean): Promise<MandateStatus>;
   recorder: LlmRecorder;
+  /** Key to record a refusal on chain with, when this agent has one (always in the simnet). */
+  gasKey(): string | undefined;
 }
 
 function mandateIdOnDisk(path: string): string | undefined {
@@ -53,6 +55,7 @@ export function agentContext(role: Role): AgentContext {
     rail,
     files,
     log,
+    gasKey: () => (mode() === "offline" || existsSync(files.gasKey) ? files.gasKey : undefined),
     recorder: { lookup: () => undefined, record: (e) => report(role, "llm.call", e as unknown as Record<string, unknown>) },
     async status(fresh = false) {
       // A cached status is only good while the credential on disk is the one it describes.

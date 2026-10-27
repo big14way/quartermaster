@@ -113,7 +113,7 @@ export function mountSupport(app: Express, ctx: AgentContext) {
       to,
       amount,
       paymentId: `drill:${Date.now()}`,
-      recordRefusalWithKey: ctx.files.gasKey,
+      recordRefusalWithKey: ctx.gasKey(),
     });
     report("support", out.outcome === "paid" ? "security.breach" : "security.refused", {
       attempt: `support agent tries to pay ${usdz(amount)} to ${to}`,

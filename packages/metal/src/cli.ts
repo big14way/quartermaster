@@ -125,10 +125,26 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
     };
   }
 
+  /** Faucet grant. The faucet allows one grant a minute per client; wait it out and retry. */
   async fund(address: Address) {
-    const r = await this.run(["fund", address, ...this.net(false)]);
-    const funded = first(r.lines, "funded");
-    return { tx: first(r.lines, "transaction"), amount: funded ? usdzToCents(funded) : undefined, note: r.stdout.trim() };
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const r = await this.run(["fund", address, ...this.net(false)]);
+        const funded = first(r.lines, "funded");
+        return { tx: first(r.lines, "transaction"), amount: funded ? usdzToCents(funded) : undefined, note: r.stdout.trim() };
+      } catch (err) {
+        const msg = (err as Error).message;
+        if (!/client_rate_limited|rate limit/i.test(msg) || attempt >= 4) throw err;
+        const wait = Number(/(\d+)\s*s/.exec(msg)?.[1] ?? 60);
+        await new Promise((r) => setTimeout(r, (wait + 2) * 1000));
+      }
+    }
+  }
+
+  /** A plain key that pays its own gas, e.g. for recording a refused payout on chain. */
+  async createKey(out: string): Promise<Address> {
+    const r = await this.run(["key", "create", "--out", out]);
+    return need(r.lines, "address", "key create") as Address;
   }
 
   async balanceOf(address: Address): Promise<Cents> {

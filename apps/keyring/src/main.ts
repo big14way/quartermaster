@@ -21,7 +21,7 @@ import {
   type Payee,
   type Role,
 } from "@qm/core";
-import { probeOffer } from "@qm/metal";
+import { LiveMetal, probeOffer } from "@qm/metal";
 import {
   approvalHash,
   approvalLinkToken,
@@ -165,6 +165,17 @@ async function bootstrap(body: { allocation: Record<Role, { cap: string; budget:
       explorer: explorerTx(bound.tx),
       planId: body.planId,
     });
+  }
+  // Live only: sourcing and support get a small gas key so a refused payment can be recorded
+  // on chain. It is a separate float, not the account; the simnet needs none.
+  if (rail instanceof LiveMetal) {
+    for (const role of ["sourcing", "support"] as const) {
+      const gas = agentFiles(role).gasKey;
+      if (existsSync(gas)) continue;
+      const address = await rail.createKey(gas);
+      const g = await rail.fund(address);
+      report("keyring", "gas_key.funded", { role, address, tx: g.tx });
+    }
   }
   writeJson(publicFiles.account, info);
   save();
