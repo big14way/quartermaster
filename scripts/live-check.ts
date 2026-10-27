@@ -12,7 +12,7 @@ import { loadDotEnv } from "./dotenv";
 
 const root = resolve(import.meta.dirname, "..");
 Object.assign(process.env, { ...loadDotEnv(root), ...process.env });
-const home = join(root, "var", "live-check");
+const home = join(root, "var", "live", "live-check");
 mkdirSync(home, { recursive: true });
 const owner = join(home, "owner-key.json");
 const cli = new LiveMetal({

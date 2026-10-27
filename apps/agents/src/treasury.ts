@@ -115,6 +115,16 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
     return { balances: await awx.balances(), deposits, transfers, conversions, sweeps: docs.list<Sweep>("sweeps"), invoices: inv };
   }));
 
+  /** Invoices with their paid state read from the transfer itself, not from memory. */
+  app.get("/invoices", route(async () => {
+    const out = [];
+    for (const i of docs.list<InvoiceDoc>("invoices")) {
+      const status = i.transferId ? (await awx.getTransfer(i.transferId)).status : undefined;
+      out.push({ id: i.id, vendor: i.vendor, amount: toCents(i.amount), dueDate: i.dueDate, transferStatus: status ?? null, paid: status === "PAID" });
+    }
+    return out;
+  }));
+
   app.post("/invoice", requireInternal, route(async (req) => {
     const out = await extractInvoice(String(req.body.text), ctx.recorder);
     const f = out.fields;

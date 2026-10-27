@@ -42,6 +42,10 @@ export function narrate(e: QmEvent): string | undefined {
       return c("33", `  ⚡ Upstream settlement timed out (settlement_in_doubt): ${d.resolution}  ${c("2", short(d.tx))}`);
     case "buyer.refused":
       return c("31", `  ✗ ${d.buyer} could not pay for ${d.symbol}: ${d.code}`);
+    case "sale.recovered":
+      return c("33", `  ⚡ Reconciler found a settlement with no sale booked (${usd(d.amount)} from ${short(d.payer)}): booked it from the chain, support refunds it  ${c("2", short(d.tx))}`);
+    case "refund.paid":
+      return d.why?.startsWith("settled on chain") ? `  Refunded ${usd(d.amount)}: ${d.why}  ${c("2", short(d.tx))}` : undefined;
     case "plan.options":
       return `  Options:\n${(d.options as any[]).map((o) => `    ${o.feasible ? c("32", "✓") : c("31", "✗")} ${o.id}. ${o.title}${o.feasible ? "" : c("2", ` (${o.reasons[0]})`)}`).join("\n")}`;
     case "plan.chosen":

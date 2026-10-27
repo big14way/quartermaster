@@ -69,13 +69,27 @@ export class PlanDesk {
         return [r, rs];
       }),
     ) as Record<Role, RoleState>;
-    const [balance, block, offers, sup, rate] = await Promise.all([
+    const [balance, block, offers, sup, rate, invoices] = await Promise.all([
       this.rail.balanceOf(account.account),
       blockNumber(),
       getJson<Offer[]>(`${url("sourcing")}/offers`),
       getJson<{ supplier: string }>(`${url("sourcing")}/supplier`),
       getJson<{ usdPerEur: string }>(`${url("treasury")}/awx/rate`),
+      getJson<{ id: string; vendor: string; amount: string; dueDate: string; paid: boolean }[]>(`${url("treasury")}/invoices`).catch(() => []),
     ]);
+    // The treasury agent's records and the transfer's own status say whether the fee is paid.
+    const booked = invoices.find((i) => i.id === (this.invoice?.id ?? KIT.licence.invoiceId));
+    if (booked) {
+      this.invoice = {
+        id: booked.id,
+        vendor: booked.vendor,
+        currency: "EUR",
+        amount: BigInt(booked.amount),
+        feeEstimate: KIT.fx.feeEstimate,
+        dueAt: `${booked.dueDate}T17:00:00Z`,
+        paid: booked.paid,
+      };
+    }
     const listed = new Set((roles.sourcing.payees ?? []).map((p) => p.toLowerCase()));
     return {
       roles,

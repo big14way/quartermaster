@@ -1,7 +1,7 @@
 import { ROLES, baseUnitsToCents, fromCents, getJson, sumCents, toCents, url, usdz, verifyChain, type Cents, type EventLog, type Role } from "@qm/core";
-import { ACCOUNTS as A } from "@qm/ledger";
+import { ACCOUNTS as A, postings } from "@qm/ledger";
 import { checkInvariants } from "@qm/policy";
-import { credentialHistory, publicFiles, requireAccount, type Rail } from "@qm/runtime";
+import { callInternal, credentialHistory, publicFiles, requireAccount, type Rail } from "@qm/runtime";
 import type { Balance, Conversion, Deposit, Transfer } from "@qm/airwallex";
 import type { Books } from "./books";
 import type { PlanDesk } from "./planning";
@@ -40,6 +40,21 @@ export async function reconcile(bus: EventLog, books: Books, desk: PlanDesk, rai
 
   // 1. Facilitator settlements to our account = sales in the ledger.
   const rows = await rail.settlements(account.account);
+  // A settlement with no sale booked means the buyer paid but our seller never recorded the
+  // sale (e.g. the buyer's call timed out mid-settle). Book it from the chain record, and have
+  // support refund it: nothing was delivered for it.
+  for (const r of rows) {
+    if (ledger.has("metal:settlement", r.id)) continue;
+    const amount = baseUnitsToCents(r.amount, "up");
+    ledger.post(postings.sale(r.id, amount, { tx: r.transaction, payer: r.payer, recovered: true }));
+    bus.append({ type: "sale.recovered", actor: "controller", data: { settlementId: r.id, tx: r.transaction, payer: r.payer, amount } });
+    try {
+      await callInternal("support", "/refund", { settlementId: r.id, to: r.payer, amount: fromCents(amount), why: "settled on chain but never delivered" });
+    } catch (err) {
+      bus.append({ type: "sale.recovered_refund_failed", actor: "controller", data: { settlementId: r.id, error: String((err as Error).message ?? err) } });
+    }
+  }
+  await new Promise((res) => setTimeout(res, 1500));
   const settled = sumCents(rows.map((r) => baseUnitsToCents(r.amount, "up")));
   const sales = -ledger.balance(A.sales, "USDZ");
   const saleEntries = ledger.entries("metal:settlement").length;

@@ -60,8 +60,12 @@ export function homeDir(): string {
   return resolve(env("QM_HOME", process.cwd()));
 }
 
+/**
+ * Runtime state lives under var/<mode>/, so offline (simnet) and live (testnet) keys,
+ * credentials and books never share a directory and a run in one mode never touches the other.
+ */
 export function varDir(...parts: string[]): string {
-  return join(homeDir(), "var", ...parts);
+  return join(homeDir(), "var", mode(), ...parts);
 }
 
 export function runsDir(): string {
