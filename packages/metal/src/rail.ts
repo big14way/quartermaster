@@ -88,6 +88,8 @@ export interface AgentRail {
     recordRefusalWithKey?: string;
   }): Promise<PullOutcome>;
   verify(input: { credentialPath: string; issuerPublicPaths: string[]; tx?: string; signedOffer?: string }): Promise<VerifyReport>;
+  /** Check one payment from the chain alone, and that the signed order is the one its mandate key signed. */
+  verifyPayment(input: { tx: string; signedOffer: string }): Promise<VerifyReport>;
   payer(credentialPath: string, mandateKeyPath: string): Payer;
 }
 

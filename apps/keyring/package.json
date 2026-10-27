@@ -1,0 +1,8 @@
+{
+  "name": "@qm/keyring",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "tsx src/main.ts" },
+  "dependencies": { "@qm/core": "workspace:*", "@qm/metal": "workspace:*", "@qm/policy": "workspace:*", "@qm/runtime": "workspace:*", "@qm/sim": "workspace:*", "express": "5.3.0" }
+}

@@ -103,6 +103,8 @@ export function simnetApp(chain: SimChain) {
 
   app.post("/mandate/verify", wrap((req) => chain.verify(req.body.credential as SimCredential, req.body.issuers as PublicJwk[], { tx: req.body.tx, signedOffer: req.body.signedOffer })));
 
+  app.post("/mandate/verify-payment", wrap((req) => chain.verifyPayment(String(req.body.tx), String(req.body.signedOffer ?? ""))));
+
   app.post("/admin/fault", wrap((req) => {
     chain.setFault(req.body ?? {});
     return { ok: true };

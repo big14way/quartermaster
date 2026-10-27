@@ -430,6 +430,26 @@ export class SimChain {
 
   // ---- verification -----------------------------------------------------------------
 
+  /** One payment, checked from the chain alone, with the signed order its mandate key made. */
+  verifyPayment(txHash: string, signedOffer: string) {
+    const t = this.s.txs[txHash];
+    const m = t?.mandateId ? this.s.mandates[t.mandateId] : undefined;
+    const steps: { step: number; outcome: "pass" | "fail" | "skipped"; title: string; detail?: string }[] = [];
+    const isPayment = !!t && t.kind === "payment" && !!t.payment && !!m;
+    steps.push({ step: 1, outcome: isPayment ? "pass" : "fail", title: "The transaction is a payment under a bound mandate", detail: isPayment ? `block ${t!.block}, mandate ${t!.mandateId!.slice(0, 10)}…` : "not a mandate payment" });
+    const sigOk = isPayment && verifyPayload(m!.credential.mandateKey, paymentBodyOf(t!.payment!), t!.payment!.signature);
+    steps.push({ step: 2, outcome: !isPayment ? "skipped" : sigOk ? "pass" : "fail", title: "The mandate key signed the per-payment mandate" });
+    const offerOk = isPayment && verifySignedOfferAgainst(signedOffer, m!.credential.mandateKey, t);
+    const d = decodeSignedOffer(signedOffer);
+    steps.push({ step: 3, outcome: !isPayment ? "skipped" : offerOk ? "pass" : "fail", title: "The signed order is the same key's, for this payee and amount", detail: d ? `${d.body.resource} at ${fromCents(baseUnitsToCents(BigInt(d.body.amount)))} USDZ` : "unreadable order" });
+    return {
+      verified: steps.every((x) => x.outcome === "pass"),
+      mandateId: t?.mandateId,
+      steps,
+      payments: isPayment ? [{ kind: "payment" as const, tx: txHash, to: t!.to, amount: baseUnitsToCents(BigInt(t!.payment!.amount)) }] : [],
+    };
+  }
+
   /** Mirror of `mandate verify`: four checks using only chain state plus the credential and issuer keys in hand. */
   verify(credential: SimCredential, issuers: PublicJwk[], opts: { tx?: string; signedOffer?: string } = {}) {
     const m = this.s.mandates[credential.mandateId];

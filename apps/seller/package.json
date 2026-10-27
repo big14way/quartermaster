@@ -1,0 +1,8 @@
+{
+  "name": "@qm/seller",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "tsx src/main.ts" },
+  "dependencies": { "@qm/core": "workspace:*", "@qm/ledger": "workspace:*", "@qm/metal": "workspace:*", "@qm/runtime": "workspace:*", "express": "5.3.0" }
+}

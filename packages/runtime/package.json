@@ -1,0 +1,17 @@
+{
+  "name": "@qm/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@qm/airwallex": "workspace:*",
+    "@qm/core": "workspace:*",
+    "@qm/metal": "workspace:*",
+    "@qm/sim": "workspace:*",
+    "express": "5.3.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6"
+  }
+}

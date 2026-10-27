@@ -1,0 +1,8 @@
+{
+  "name": "@qm/controller",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "tsx src/main.ts" },
+  "dependencies": { "@qm/airwallex": "workspace:*", "@qm/core": "workspace:*", "@qm/ledger": "workspace:*", "@qm/metal": "workspace:*", "@qm/planner": "workspace:*", "@qm/policy": "workspace:*", "@qm/runtime": "workspace:*", "express": "5.3.0" }
+}

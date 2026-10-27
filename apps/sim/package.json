@@ -1,0 +1,8 @@
+{
+  "name": "@qm/sim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "tsx src/main.ts" },
+  "dependencies": { "@qm/core": "workspace:*", "@qm/sim": "workspace:*", "@qm/runtime": "workspace:*" }
+}

@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { createPublicClient, erc20Abi, http } from "viem";
+import { createPublicClient, erc20Abi, http, type Hash } from "viem";
+import { verifyMandatePayment } from "@metalntwx/metal-pay/mandates";
 import { QmError, baseUnitsToCents, fromCents, type Address, type Cents, type MandateStatus, type MandateTerms } from "@qm/core";
 import {
   USDZ_ADDRESS,
@@ -272,6 +273,17 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
       return { kind: (r.lines.get("refusal") ?? []).includes(p) ? ("refusal" as const) : ("payment" as const), tx, reason: refusalCode(p) };
     });
     return { verified: first(r.lines, "verified") === "yes", mandateId: first(r.lines, "mandate"), steps, payments, raw: r.stdout };
+  }
+
+  async verifyPayment(input: { tx: string; signedOffer: string }): Promise<VerifyReport> {
+    const client = createPublicClient({ transport: http(this.cfg.rpcUrl) });
+    const v = await verifyMandatePayment(client as never, { tx: input.tx as Hash, checkoutMandate: input.signedOffer });
+    return {
+      verified: v.ok,
+      mandateId: v.mandate?.ref,
+      steps: v.steps.map((s) => ({ step: s.step, outcome: s.outcome, title: s.title, detail: s.detail })),
+      payments: v.payments.map((p) => ({ kind: p.kind, tx: p.txHash, to: p.to, amount: baseUnitsToCents(p.amount, "up"), reason: p.reason })),
+    };
   }
 
   payer(credentialPath: string, mandateKeyPath: string): Payer {

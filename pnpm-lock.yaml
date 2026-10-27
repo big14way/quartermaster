@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@types/express':
+        specifier: 5.0.6
+        version: 5.0.6
       '@types/node':
         specifier: 24.10.1
         version: 24.10.1
@@ -20,6 +23,144 @@ importers:
       vitest:
         specifier: 3.2.4
         version: 3.2.4(@types/node@24.10.1)(tsx@4.23.15)
+
+  apps/agents:
+    dependencies:
+      '@qm/airwallex':
+        specifier: workspace:*
+        version: link:../../packages/airwallex
+      '@qm/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@qm/ledger':
+        specifier: workspace:*
+        version: link:../../packages/ledger
+      '@qm/metal':
+        specifier: workspace:*
+        version: link:../../packages/metal
+      '@qm/planner':
+        specifier: workspace:*
+        version: link:../../packages/planner
+      '@qm/policy':
+        specifier: workspace:*
+        version: link:../../packages/policy
+      '@qm/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      express:
+        specifier: 5.3.0
+        version: 5.3.0
+
+  apps/buyers:
+    dependencies:
+      '@qm/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@qm/metal':
+        specifier: workspace:*
+        version: link:../../packages/metal
+      '@qm/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      express:
+        specifier: 5.3.0
+        version: 5.3.0
+
+  apps/controller:
+    dependencies:
+      '@qm/airwallex':
+        specifier: workspace:*
+        version: link:../../packages/airwallex
+      '@qm/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@qm/ledger':
+        specifier: workspace:*
+        version: link:../../packages/ledger
+      '@qm/metal':
+        specifier: workspace:*
+        version: link:../../packages/metal
+      '@qm/planner':
+        specifier: workspace:*
+        version: link:../../packages/planner
+      '@qm/policy':
+        specifier: workspace:*
+        version: link:../../packages/policy
+      '@qm/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      express:
+        specifier: 5.3.0
+        version: 5.3.0
+
+  apps/feeds:
+    dependencies:
+      '@qm/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@qm/metal':
+        specifier: workspace:*
+        version: link:../../packages/metal
+      '@qm/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@qm/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
+      express:
+        specifier: 5.3.0
+        version: 5.3.0
+
+  apps/keyring:
+    dependencies:
+      '@qm/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@qm/metal':
+        specifier: workspace:*
+        version: link:../../packages/metal
+      '@qm/policy':
+        specifier: workspace:*
+        version: link:../../packages/policy
+      '@qm/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@qm/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
+      express:
+        specifier: 5.3.0
+        version: 5.3.0
+
+  apps/seller:
+    dependencies:
+      '@qm/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@qm/ledger':
+        specifier: workspace:*
+        version: link:../../packages/ledger
+      '@qm/metal':
+        specifier: workspace:*
+        version: link:../../packages/metal
+      '@qm/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      express:
+        specifier: 5.3.0
+        version: 5.3.0
+
+  apps/sim:
+    dependencies:
+      '@qm/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@qm/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@qm/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
 
   packages/airwallex:
     dependencies:
@@ -98,6 +239,28 @@ importers:
       decimal.js:
         specifier: 10.6.0
         version: 10.6.0
+
+  packages/runtime:
+    dependencies:
+      '@qm/airwallex':
+        specifier: workspace:*
+        version: link:../airwallex
+      '@qm/core':
+        specifier: workspace:*
+        version: link:../core
+      '@qm/metal':
+        specifier: workspace:*
+        version: link:../metal
+      '@qm/sim':
+        specifier: workspace:*
+        version: link:../sim
+      express:
+        specifier: 5.3.0
+        version: 5.3.0
+    devDependencies:
+      '@types/express':
+        specifier: 5.0.6
+        version: 5.0.6
 
   packages/sim:
     dependencies:

@@ -224,6 +224,10 @@ export class SimMetal implements OwnerRail, AgentRail, FacilitatorReader {
     return this.api<VerifyReport>("/mandate/verify", { credential, issuers, tx: input.tx, signedOffer: input.signedOffer });
   }
 
+  verifyPayment(input: { tx: string; signedOffer: string }): Promise<VerifyReport> {
+    return this.api<VerifyReport>("/mandate/verify-payment", input);
+  }
+
   payer(credentialPath: string, mandateKeyPath: string): Payer {
     return {
       pay: async (url, init = {}): Promise<PaidResult> => {
