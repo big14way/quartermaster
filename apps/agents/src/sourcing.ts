@@ -41,7 +41,7 @@ export function mountSourcing(app: Express, ctx: AgentContext) {
       paymentId: `refusal:${feed.id}:${price}`,
       recordRefusalWithKey: ctx.gasKey(),
     });
-    const tx = out.outcome === "refused" && out.recorded ? out.tx : undefined;
+    const tx = out.outcome === "refused" ? out.tx : undefined;
     recorded.set(key, tx);
     return tx;
   }

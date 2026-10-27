@@ -364,7 +364,10 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
     if (r.code === 3) return { outcome: "pending", reason: first(r.lines, "reason") ?? "pending", canLandUntil: first(r.lines, "can-land-until") };
     if (r.code === 4) return { outcome: "held", tx: first(r.lines, "transaction") };
     const reason = first(r.lines, "reason") ?? refusalCode(r.stderr);
-    return { outcome: "refused", reason: refusalCode(reason), recorded: (first(r.lines, "recorded") ?? "no") !== "no", tx: first(r.lines, "transaction") };
+    const tx = first(r.lines, "transaction");
+    // A refused payout that names a transaction was recorded on chain, with or without a "recorded" line.
+    const recordedLine = first(r.lines, "recorded");
+    return { outcome: "refused", reason: refusalCode(reason), recorded: recordedLine ? recordedLine !== "no" : !!tx, tx };
   }
 
   async verify(input: { credentialPath: string; issuerPublicPaths: string[]; tx?: string; signedOffer?: string }): Promise<VerifyReport> {

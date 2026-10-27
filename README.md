@@ -58,6 +58,23 @@ How the planner decides in step 3, with the numbers the demo produces:
 | D. Pass the price through | ✗ | Cap S stays 0.03, so the account still refuses the purchase. |
 | E. Pause and escalate | ✓ | Always possible; loses about 6.00 USDZ of sales an hour. |
 
+### Verified on Metal testnet
+
+`runs/sample-live.jsonl` is a full live run, with Airwallex on the simulator. Replay it with `pnpm replay runs/sample-live.jsonl`. In that run:
+
+- **34 sales** were paid over real x402 with signed orders. Each one bought a real upstream quote under mandate S.
+- **The 4 cent offer was refused** under cap S.
+- **The planner** (`claude-haiku-5-5`) picked option B.
+- **The keyring replaced R, then S, on chain:**
+  - [R replaced](https://testnet.metalntwx.com/tx/0xa1de2d3088bcf55a31db230e8acc72fb9ca8ea3923ac4da5d21a23fdeb8e6eea)
+  - [S replaced](https://testnet.metalntwx.com/tx/0xeff8610f83ea97f62f69d471b4713e8ae8f64539cba58282620fa43ccfe7bf90), with spend carried over
+
+  `mandate verify` passes for all of them.
+- **Disputes:** support verified each disputed signed order against its payment on chain and refunded four stale charges.
+- **Treasury:** it [swept 5.72 USDZ to the ramp](https://testnet.metalntwx.com/tx/0x173368180a01727f461d24081a82a6f006f7f97dd9253d8357af5d47baeb29b1).
+- **Drill:** the compromised support agent's 10 USDZ payout was [refused and recorded on chain](https://testnet.metalntwx.com/tx/0x9827a5ba1c5ee7adcd3c1af04deacae511d78993fa53135c6c4efc2b256318bf).
+- **Books:** all seven checks pass against the live facilitator and chain, to the cent.
+
 ---
 
 ## Architecture

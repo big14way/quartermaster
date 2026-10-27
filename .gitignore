@@ -28,3 +28,4 @@ runs/*.jsonl
 
 # live setup key that pays for the RPC endpoint (testnet)
 .metal/
+!runs/sample-live.jsonl
