@@ -97,7 +97,13 @@ const cliEntry = (() => {
 export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
   constructor(private readonly cfg: LiveMetalConfig) {}
 
-  async run(args: string[], opts: { allowExit?: number[] } = {}): Promise<CliRun> {
+  /**
+   * Run metal-agent. A call that does not finish in `timeoutMs` is killed and reported as
+   * cli_timeout: for a payment that means unconfirmed, to be looked up, never re-sent blind.
+   */
+  async run(args: string[], opts: { allowExit?: number[]; timeoutMs?: number } = {}): Promise<CliRun> {
+    const started = Date.now();
+    const timeoutMs = opts.timeoutMs ?? 150_000;
     const env = {
       ...process.env,
       HOME: this.cfg.home,
@@ -111,10 +117,31 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
       const child = spawn(process.execPath, [cliEntry, ...args], { cwd: this.cfg.home, env });
       let stdout = "";
       let stderr = "";
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        child.kill("SIGKILL");
+      }, timeoutMs);
       child.stdout.on("data", (d) => (stdout += d));
       child.stderr.on("data", (d) => (stderr += d));
-      child.on("error", reject);
+      child.on("error", (err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
       child.on("close", (code) => {
+        clearTimeout(timer);
+        const secs = (Date.now() - started) / 1000;
+        if (secs > 20) console.warn(`[metal-agent] ${args.slice(0, 2).join(" ")} took ${secs.toFixed(1)}s`);
+        if (timedOut) {
+          const lines = parseNameValue(stdout);
+          reject(
+            new QmError("cli_timeout", `metal-agent ${args.slice(0, 2).join(" ")} did not finish in ${timeoutMs / 1000}s; payment in doubt at settlement`, {
+              args: args[0],
+              nonce: first(lines, "nonce"),
+            }),
+          );
+          return;
+        }
         const run = { code: code ?? 1, stdout, stderr, lines: parseNameValue(stdout) };
         if (run.code !== 0 && !(opts.allowExit ?? []).includes(run.code)) {
           const msg = (stderr.match(/error: (.*)/)?.[1] ?? stderr.trim()) || `exit ${run.code}`;
@@ -416,7 +443,7 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
           const msg = e.message ?? String(err);
           const stage = /before signing/.test(msg)
             ? "before-signing"
-            : /in doubt/.test(msg)
+            : /in doubt|may have settled/.test(msg) || e.code === "cli_timeout"
               ? "in-doubt"
               : /at settlement/.test(msg)
                 ? "settle"

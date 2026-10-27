@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
-import { KIT, QmError, canonicalHash, canonicalJson, env, fromCents, logger, newId, sleep, toCents, usdz, varDir } from "@qm/core";
+import { KIT, QmError, canonicalHash, canonicalJson, env, fromCents, logger, newId, requestJson, sleep, toCents, url, usdz, varDir } from "@qm/core";
 import { DocStore } from "@qm/ledger";
-import { callInternal, jsonApp, paywall, readAccount, report, requireInternal, route, serve } from "@qm/runtime";
+import { internalHeaders, jsonApp, paywall, readAccount, report, requireInternal, route, serve } from "@qm/runtime";
 
 // Quartermaster's own paid API: GET /v1/snapshot?symbol=…, 5 cents a call, signed order
 // required. Each sale is stored with its signed order, its transaction hash and what was
@@ -86,7 +86,8 @@ async function mountWhenReady() {
       const symbol = String(req.query.symbol ?? "EURUSD").toUpperCase();
       let bought: { supplier: string; name: string; tx: string; amount: string; data: Record<string, string> };
       try {
-        bought = await callInternal("sourcing", "/buy", { symbol });
+        // Well inside the buyer's payment window: past it, answer 503 so nothing is settled.
+        bought = await requestJson(`${url("sourcing")}/buy`, { method: "POST", body: { symbol }, headers: internalHeaders(), timeoutMs: 180_000 });
       } catch (err) {
         const e = err as QmError;
         report("seller", "sale.not_charged", { symbol, reason: e.code, message: e.message });

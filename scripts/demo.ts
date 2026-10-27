@@ -61,7 +61,7 @@ function start(name: string, file: string, argv: string[] = [], extraEnv: NodeJS
       .split("\n")
       .filter((l) => l.trim() && !/DeprecationWarning|--trace-deprecation|ExperimentalWarning|SQLite is an experimental/.test(l))
       .forEach((l) => {
-        if (!headless || /error|Error|✗/.test(l)) console.log(l.includes(`[${name}]`) ? l : `[${name}] ${l}`);
+        if (!headless || /error|Error|✗|took [0-9]/.test(l)) console.log(l.includes(`[${name}]`) ? l : `[${name}] ${l}`);
       });
   child.stdout!.on("data", prefix);
   child.stderr!.on("data", prefix);

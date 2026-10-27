@@ -85,6 +85,8 @@ export function mountSourcing(app: Express, ctx: AgentContext) {
 
     const startedAt = Date.now();
     const paid = await ctx.rail.payer(ctx.files.credential, ctx.files.mandateKey).pay(target);
+    const secs = (Date.now() - startedAt) / 1000;
+    if (secs > 20) ctx.log.warn(`paying ${feed.name} for ${symbol} took ${secs.toFixed(1)}s`);
     if (!paid.paid && paid.refusal?.stage === "in-doubt") {
       // A timeout is unconfirmed, not failed. Look the payment up before anything else; never pay again blind.
       const { account } = requireAccount();
