@@ -87,6 +87,10 @@ function shutdown(code: number) {
 }
 process.on("SIGINT", () => shutdown(130));
 
+// A run can take many minutes on testnet; a Mac that idle-sleeps on battery freezes every
+// process mid-payment. Hold a no-idle-sleep assertion for as long as this supervisor runs.
+if (process.platform === "darwin") spawn("caffeinate", ["-i", "-w", String(process.pid)], { stdio: "ignore", detached: true }).unref();
+
 const app = (name: string) => join(root, "apps", name, "src", "main.ts");
 const health = (p: number) => waitForHealth(`http://127.0.0.1:${p}/health`, 40_000);
 
