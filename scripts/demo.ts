@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes, randomInt } from "node:crypto";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -30,6 +30,11 @@ function loadDotEnv(): Record<string, string> {
     if (m && m[2] !== "") out[m[1]!] = m[2]!.replace(/^["']|["']$/g, "");
   }
   return out;
+}
+
+if (!headless && !existsSync(join(root, "apps", "dashboard", "dist", "index.html"))) {
+  console.log("[demo] building the dashboard…");
+  spawnSync("pnpm", ["--filter", "@qm/dashboard", "build"], { cwd: root, stdio: "inherit" });
 }
 
 if (!args.has("--keep")) rmSync(join(root, "var"), { recursive: true, force: true });
