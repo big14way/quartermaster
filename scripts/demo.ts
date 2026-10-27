@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes, randomInt } from "node:crypto";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { getJson, postJson, sleep, waitForHealth, type QmEvent } from "@qm/core";
@@ -27,7 +27,15 @@ if (!headless && !existsSync(join(root, "apps", "dashboard", "dist", "index.html
   spawnSync("pnpm", ["--filter", "@qm/dashboard", "build"], { cwd: root, stdio: "inherit" });
 }
 
-if (!args.has("--keep")) rmSync(join(root, "var"), { recursive: true, force: true });
+// var/ holds keys, credentials and books for one mode. Never reuse simnet state on testnet
+// or the other way round, even with --keep.
+const modeFile = join(root, "var", ".mode");
+const runMode = live ? "live" : "offline";
+const keptMode = existsSync(modeFile) ? readFileSync(modeFile, "utf8").trim() : undefined;
+if (args.has("--keep") && keptMode && keptMode !== runMode) console.log(`[demo] var/ holds ${keptMode} state; starting fresh for ${runMode}`);
+if (!args.has("--keep") || (keptMode && keptMode !== runMode)) rmSync(join(root, "var"), { recursive: true, force: true });
+mkdirSync(join(root, "var"), { recursive: true });
+writeFileSync(modeFile, runMode);
 
 const dotenv = loadDotEnv(root);
 // Live Metal can run before the Airwallex sandbox account is approved: without sandbox keys

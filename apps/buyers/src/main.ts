@@ -94,7 +94,7 @@ app.post("/run", requireInternal, route(async (req) => {
       report("buyers", "buyer.not_charged", { buyer: b.name, symbol, status: res.status });
     } else {
       tally.refused += 1;
-      report("buyers", "buyer.refused", { buyer: b.name, symbol, code: res.refusal?.code });
+      report("buyers", "buyer.refused", { buyer: b.name, symbol, code: res.refusal?.code, message: res.refusal?.message?.slice(0, 300) });
     }
     if (delayMs) await sleep(delayMs);
   }
