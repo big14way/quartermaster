@@ -203,20 +203,31 @@ Offline mode runs two local stand-ins. Both are labelled **SIMULATED** in the UI
 
 Both sides use the same interfaces as the live adapters. The Airwallex client is the same code in both modes; only the base URL changes.
 
-### Live (Metal testnet + Airwallex sandbox)
+### Live (Metal testnet, with or without the Airwallex sandbox)
 
-1. **Metal.**
-   - Create an RPC endpoint at <https://console-testnet.metalntwx.com> (chain 63825).
-   - `metal-agent` 0.3.3 is installed as a workspace dependency.
-2. **Airwallex.**
-   - Sign up for a sandbox account and create an API key.
-   - Webhooks are optional, because the poller covers them. To receive them, point a public tunnel at `POST /webhooks/airwallex` and set the secret.
-3. **Configure.** `cp .env.example .env`, then fill in:
-   - `METAL_RPC_URL` and `QM_RAMP_ADDRESS` (a Metal address you control);
-   - `AIRWALLEX_CLIENT_ID` and `AIRWALLEX_API_KEY`;
-   - optionally `ANTHROPIC_API_KEY`.
-4. **Check the CLI output parsers.** `pnpm live:check` runs a throwaway account through `account create`, `credential create`, `bind`, `status`, `pay --mandate` against Metal's public demo seller, and `verify`. It prints the raw output beside what was parsed.
-5. **Run.** `pnpm demo --live`. The faucet grants about 100 USDZ per address once a minute; Quartermaster still holds the budgets to the 20 USDZ allocation in code.
+The Metal side runs live on testnet with no console account. You buy an RPC endpoint over x402, the way an agent would. `ma` below is `metal-agent` (installed as a workspace dependency):
+
+```bash
+ma() { HOME=$PWD/.metal node packages/metal/node_modules/@metalntwx/metal-agent/dist/index.js "$@"; }
+ma key create --out .metal/rpc-payer.json                  # .metal/ is gitignored
+ma fund <address> --network testnet                        # 100 testnet USDZ from the faucet
+ma pay https://rpc-testnet.metalntwx.com/v1 --network testnet --key .metal/rpc-payer.json \
+  --method POST --body '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}'
+# the rpc-aas-endpoint header is your METAL_RPC_URL; GET-paying it again tops up $1
+ma key create --out .metal/ramp.json                       # stands in for the Airwallex on-ramp
+```
+
+Then fill in `.env` (copy `.env.example`):
+
+| Variable | Value |
+|---|---|
+| `METAL_RPC_URL` | the endpoint from the `rpc-aas-endpoint` header. It is a credential. |
+| `QM_FUNDER_KEY` | `.metal/rpc-payer.json`. Setup is paid by exact USDZ transfers from this key instead of the faucet, which allows one grant a minute and ten a day per IP. A run uses about 26 testnet USDZ. |
+| `QM_RAMP_ADDRESS` | the address of `.metal/ramp.json` |
+| `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_API_KEY` | sandbox keys. Leave them empty to keep Airwallex on the simulator, which every surface labels. |
+| `ANTHROPIC_API_KEY` | optional. The planner and extraction use `claude-haiku-5-5`. |
+
+Run `pnpm live:check` to drive a throwaway account through every CLI command Quartermaster parses, then `pnpm demo --live` (add `--headless` to run the whole story). Airwallex webhooks are optional, because the poller covers them. To receive them, point a public tunnel at `POST /webhooks/airwallex` and set `AIRWALLEX_WEBHOOK_SECRET`.
 
 In live mode:
 
