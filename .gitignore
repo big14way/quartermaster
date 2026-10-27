@@ -1,0 +1,27 @@
+# private research notes, never commit
+QUARTERMASTER_BLUEPRINT.md
+
+# dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# secrets: never commit
+.env
+.env.*
+!.env.example
+owner-key.json
+*.key.json
+*.issuer.json
+*.issuer.public.json
+*.pem
+
+# runtime state (keys, credentials, sqlite, logs)
+var/
+*.sqlite
+*.sqlite-*
+runs/*.jsonl
+!runs/sample-offline.jsonl
+
+.DS_Store

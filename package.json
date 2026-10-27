@@ -1,0 +1,29 @@
+{
+  "name": "quartermaster",
+  "private": true,
+  "type": "module",
+  "description": "Three x402 agents, one Metal account, budgets that rebalance when supplier prices move.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "demo": "tsx scripts/demo.ts",
+    "replay": "tsx scripts/replay.ts",
+    "dashboard:build": "pnpm --filter @qm/dashboard build"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
