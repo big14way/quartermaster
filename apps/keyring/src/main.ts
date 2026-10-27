@@ -77,6 +77,8 @@ interface KeyringState {
   feeds: FeedRef[];
   payees: Partial<Record<Role, Payee[] | null>>;
   proposals: Record<string, Proposal>;
+  /** Progress through the opening allocation, so a retried bootstrap never funds or binds twice. */
+  boot?: { account?: Address; owner?: Address; ramp?: Address; createdTx?: string; funded?: boolean; bound?: Partial<Record<Role, string>>; gas?: Partial<Record<Role, boolean>> };
 }
 
 const state: KeyringState = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, "utf8")) : { feeds: [], payees: {}, proposals: {} };
@@ -120,14 +122,24 @@ async function bootstrap(body: { allocation: Record<Role, { cap: string; budget:
   const total = sumCents(budgets);
   if (total > KIT.totalAllocation) throw new QmError("allocation_exceeds_total", `Σ budgets ${usdz(total)} exceeds ${usdz(KIT.totalAllocation)}`);
 
-  const { account, owner, tx } = await rail.createAccount();
-  const ramp = rampAddress();
-  const info: AccountInfo = { account, owner, ramp, createdTx: tx };
-  report("keyring", "account.created", { account, owner, ramp, tx, explorer: tx ? explorerTx(tx) : undefined });
+  const boot = (state.boot ??= { bound: {}, gas: {} });
+  if (!boot.account) {
+    const { account, owner, tx } = await rail.createAccount();
+    Object.assign(boot, { account, owner, ramp: rampAddress(), createdTx: tx });
+    save();
+    report("keyring", "account.created", { account, owner, ramp: boot.ramp, tx, explorer: tx ? explorerTx(tx) : undefined });
+  }
+  const account = boot.account!;
+  const info: AccountInfo = { account, owner: boot.owner!, ramp: boot.ramp!, createdTx: boot.createdTx };
 
-  const funded = await rail.fund(account, KIT.totalAllocation);
-  const balance = await rail.balanceOf(account);
-  report("keyring", "account.funded", { account, tx: funded.tx, amount: balance, explorer: funded.tx ? explorerTx(funded.tx) : undefined });
+  if (!boot.funded) {
+    const funded = await rail.fund(account, KIT.totalAllocation);
+    boot.funded = true;
+    save();
+    const balance = await rail.balanceOf(account);
+    report("keyring", "account.funded", { account, tx: funded.tx, amount: balance, explorer: funded.tx ? explorerTx(funded.tx) : undefined });
+  }
+  const ramp = info.ramp;
 
   state.feeds = body.feeds;
   state.payees = {
@@ -142,6 +154,7 @@ async function bootstrap(body: { allocation: Record<Role, { cap: string; budget:
   };
 
   for (const role of ROLES) {
+    if (boot.bound?.[role]) continue;
     const files = agentFiles(role);
     mkdirSync(files.dir, { recursive: true, mode: 0o700 });
     const terms = {
@@ -156,6 +169,8 @@ async function bootstrap(body: { allocation: Record<Role, { cap: string; budget:
     const bound = await rail.bind(cred.credentialPath);
     if (!existsSync(publicFiles.issuer)) copyFileSync(cred.issuerPublicPath, publicFiles.issuer);
     publish(role, cred.credentialPath);
+    (boot.bound ??= {})[role] = cred.mandateId;
+    save();
     report("keyring", "mandate.bound", {
       role,
       mandateId: cred.mandateId,
@@ -171,10 +186,12 @@ async function bootstrap(body: { allocation: Record<Role, { cap: string; budget:
   // on chain. It is a separate float, not the account; the simnet needs none.
   if (rail instanceof LiveMetal) {
     for (const role of ["sourcing", "support"] as const) {
+      if (boot.gas?.[role]) continue;
       const gas = agentFiles(role).gasKey;
-      if (existsSync(gas)) continue;
-      const address = await rail.createKey(gas);
-      const g = await rail.fund(address);
+      const address = existsSync(gas) ? (readJsonFile<{ address: Address }>(gas).address) : await rail.createKey(gas);
+      const g = await rail.fund(address, 20n);
+      (boot.gas ??= {})[role] = true;
+      save();
       report("keyring", "gas_key.funded", { role, address, tx: g.tx });
     }
   }

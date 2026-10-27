@@ -12,6 +12,7 @@ import {
   optionalEnv,
   port,
   postJson,
+  requestJson,
   toJson,
   url,
   varDir,
@@ -159,8 +160,9 @@ export function serve(app: express.Express, service: Service, name: string) {
 
 export const internalHeaders = () => ({ [INTERNAL_HEADER]: internalToken() });
 
+/** Calls between Quartermaster processes. Live chain work (binds, payouts) takes minutes, not milliseconds. */
 export function callInternal<T>(service: Service, path: string, body?: unknown): Promise<T> {
-  return postJson<T>(`${url(service)}${path}`, body ?? {}, internalHeaders());
+  return requestJson<T>(`${url(service)}${path}`, { method: "POST", body: body ?? {}, headers: internalHeaders(), timeoutMs: 20 * 60_000 });
 }
 
 // ---- events -----------------------------------------------------------------------

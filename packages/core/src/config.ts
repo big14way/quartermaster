@@ -125,8 +125,8 @@ export const KIT = {
     ttlSeconds: 900,
   },
   customer: {
-    funding: 1000n as Cents,
-    mandate: { cap: 10n as Cents, budget: 500n as Cents },
+    funding: 500n as Cents,
+    mandate: { cap: 10n as Cents, budget: 150n as Cents },
     buyers: ["atlas-research", "brightline-quant", "corvid-analytics"],
   },
   symbols: ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "BTCUSD"],

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { createPublicClient, createWalletClient, erc20Abi, http, type Hash, type Hex } from "viem";
@@ -105,6 +105,8 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
       METAL_FACILITATOR_URL: this.cfg.facilitatorUrl,
       ...(this.cfg.faucetUrl ? { METAL_FAUCET_URL: this.cfg.faucetUrl } : {}),
     };
+    // spawn reports a missing cwd as ENOENT on the executable, so make sure it exists.
+    mkdirSync(this.cfg.home, { recursive: true });
     return new Promise((resolve, reject) => {
       const child = spawn(process.execPath, [cliEntry, ...args], { cwd: this.cfg.home, env });
       let stdout = "";

@@ -155,7 +155,7 @@ export class Director {
       await callInternal("feedA", "/admin/price", { price: fromCents(KIT.feeds.A.spikePrice) });
       await callInternal("feedB", "/admin/price", { price: fromCents(KIT.feeds.B.spikePrice) });
       await callInternal("buyers", "/run", { count: 3 });
-      await this.waitFor((e) => ["plan.submitted", "plan.applied", "plan.escalated", "plan.failed"].includes(e.type), 120_000, since);
+      await this.waitFor((e) => ["plan.submitted", "plan.applied", "plan.escalated", "plan.failed"].includes(e.type), 10 * 60_000, since);
     },
 
     approve: async () => {
@@ -178,9 +178,9 @@ export class Director {
       const amount = invoiceRequiredUsd(state);
       const since = this.bus.events.length;
       await callInternal("treasury", "/sweep", { sweepId: "sweep-1", amount: fromCents(amount) });
-      await this.waitFor((e) => e.type === "awx.deposit_settled", 60_000, since);
+      await this.waitFor((e) => e.type === "awx.deposit_settled", 5 * 60_000, since);
       await callInternal("treasury", "/pay-invoice", { invoiceId: state.invoice.id, drill: "crash-after-create" });
-      await this.waitFor((e) => e.type === "awx.transfer_status" && (e.data as { status?: string; ignored?: boolean }).status === "PAID" && !(e.data as { ignored?: boolean }).ignored, 60_000, since);
+      await this.waitFor((e) => e.type === "awx.transfer_status" && (e.data as { status?: string; ignored?: boolean }).status === "PAID" && !(e.data as { ignored?: boolean }).ignored, 5 * 60_000, since);
       this.bus.append({ type: "story.note", actor: "director", data: { text: `Swept ${usdz(amount)}: the fee and transfer fee at the live rate plus buffer.` } });
     },
 
