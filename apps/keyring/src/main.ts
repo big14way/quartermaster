@@ -45,6 +45,7 @@ import { approvalPage, resultPage } from "./page";
 const log = logger("keyring");
 const dir = varDir("keyring");
 mkdirSync(dir, { recursive: true });
+mkdirSync(publicFiles.dir, { recursive: true });
 const ownerKeyFile = join(dir, "owner-key.json");
 const stateFile = join(dir, "state.json");
 const rail = metalRail({ ownerKeyFile, home: dir });

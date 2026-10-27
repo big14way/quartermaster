@@ -26,5 +26,8 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
+  },
+  "dependencies": {
+    "@qm/core": "workspace:*"
   }
 }

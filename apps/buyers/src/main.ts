@@ -75,9 +75,10 @@ app.post("/run", requireInternal, route(async (req) => {
   const count = Number(req.body.count ?? 10);
   const delayMs = Number(req.body.delayMs ?? 150);
   const symbols: string[] = req.body.symbols ?? KIT.symbols;
+  const pool = req.body.only ? state.buyers.filter((b) => b.name === req.body.only) : state.buyers;
   const tally = { paid: 0, notCharged: 0, refused: 0, spent: 0n };
   for (let i = 0; i < count; i++) {
-    const b = state.buyers[i % state.buyers.length]!;
+    const b = pool[i % pool.length]!;
     const symbol = symbols[i % symbols.length]!;
     const res = await rail.payer(b.credential, b.mandateKey).pay(`${url("seller")}/v1/snapshot?symbol=${symbol}`);
     if (res.paid) {

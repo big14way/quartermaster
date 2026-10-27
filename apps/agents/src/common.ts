@@ -39,8 +39,11 @@ export function agentContext(role: Role): AgentContext {
     const id = mandateIdOnDisk(files.credential);
     cached = undefined;
     if (id && id !== lastId) {
-      log.info(`reloaded credential ${id.slice(0, 12)}…`);
-      report(role, "agent.reloaded", { role, from: lastId, to: id });
+      // The first credential is a load, not a reload; only replacements are worth an event.
+      if (lastId) {
+        log.info(`reloaded credential ${id.slice(0, 12)}…`);
+        report(role, "agent.reloaded", { role, from: lastId, to: id });
+      }
       lastId = id;
     }
   });
