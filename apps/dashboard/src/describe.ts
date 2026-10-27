@@ -35,6 +35,8 @@ export function describe(e: QmEvent): Line | undefined {
       return { text: `Sourcing bought from ${d.name} for ${money(d.amount)}`, tone: "muted", tx: d.tx };
     case "sourcing.refused":
       return d.stage === "account" ? { text: `Purchase refused on chain: ${d.code} (${d.name} ${money(d.price)} > cap ${money(d.cap)})`, tone: "bad", tx: d.tx } : undefined;
+    case "sourcing.in_doubt":
+      return { text: `Upstream settlement in doubt: ${d.resolution}`, tone: "warn", tx: d.tx };
     case "feed.price_changed":
       return { text: `${d.name} price ${money(d.from)} → ${money(d.to)}`, tone: "warn" };
     case "feed.quality_changed":

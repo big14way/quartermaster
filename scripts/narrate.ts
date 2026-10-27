@@ -38,6 +38,8 @@ export function narrate(e: QmEvent): string | undefined {
       return d.stage === "account"
         ? c("31", `  ✗ Purchase refused on chain: ${d.code} (${d.name} asks ${usd(d.price)}, cap S ${usd(d.cap)})  ${c("2", short(d.tx))}`)
         : undefined;
+    case "sourcing.in_doubt":
+      return c("33", `  ⚡ Upstream settlement timed out (settlement_in_doubt): ${d.resolution}  ${c("2", short(d.tx))}`);
     case "plan.options":
       return `  Options:\n${(d.options as any[]).map((o) => `    ${o.feasible ? c("32", "✓") : c("31", "✗")} ${o.id}. ${o.title}${o.feasible ? "" : c("2", ` (${o.reasons[0]})`)}`).join("\n")}`;
     case "plan.chosen":

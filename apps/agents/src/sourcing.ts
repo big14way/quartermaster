@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { QmError, canonicalHash, getJson, url, usdz, type Address, type Cents } from "@qm/core";
 import { probeOffer } from "@qm/metal";
-import { report, requireInternal, route } from "@qm/runtime";
+import { report, requireAccount, requireInternal, route } from "@qm/runtime";
 import type { AgentContext } from "./common";
 
 interface FeedInfo {
@@ -21,6 +21,8 @@ export function mountSourcing(app: Express, ctx: AgentContext) {
   let supplier: "A" | "B" = "A";
   let paused = false;
   const recorded = new Map<string, string | undefined>();
+  /** Every upstream purchase this agent has booked, by tx hash. */
+  const bought = new Set<string>();
   let feeds: FeedInfo[] | undefined;
 
   async function feedList(): Promise<FeedInfo[]> {
@@ -50,20 +52,21 @@ export function mountSourcing(app: Express, ctx: AgentContext) {
     const feed = (await feedList()).find((f) => f.id === supplier)!;
     const target = `${feed.url}/quote?symbol=${encodeURIComponent(symbol)}`;
     const probe = await probeOffer(target);
-    if (!probe.offer) throw new QmError("no_offer", `${feed.name} sent no exact USDZ offer`, { status: 502 });
+    const offer = probe.offer;
+    if (!offer) throw new QmError("no_offer", `${feed.name} sent no exact USDZ offer`, { status: 502 });
     let status = await ctx.status();
     // Never refuse on a cached cap: confirm against the chain first.
-    if (probe.offer.price > status.cap) status = await ctx.status(true);
-    const offerHash = canonicalHash(probe.offer.requirement);
+    if (offer.price > status.cap) status = await ctx.status(true);
+    const offerHash = canonicalHash(offer.requirement);
 
-    if (probe.offer.price > status.cap) {
-      const firstTime = !recorded.has(`${feed.id}:${probe.offer.price}`);
-      const tx = await recordRefusal(feed, probe.offer.price);
+    if (offer.price > status.cap) {
+      const firstTime = !recorded.has(`${feed.id}:${offer.price}`);
+      const tx = await recordRefusal(feed, offer.price);
       report("sourcing", "sourcing.refused", {
         supplier: feed.id,
         name: feed.name,
         symbol,
-        price: probe.offer.price,
+        price: offer.price,
         cap: status.cap,
         code: "mandate_cap_exceeded",
         stage: firstTime ? "account" : "before-signing",
@@ -71,21 +74,48 @@ export function mountSourcing(app: Express, ctx: AgentContext) {
         offerHash,
         mandateId: status.mandateId,
       });
-      throw new QmError("mandate_cap_exceeded", `${feed.name} asks ${usdz(probe.offer.price)}, above cap S ${usdz(status.cap)}`, {
+      throw new QmError("mandate_cap_exceeded", `${feed.name} asks ${usdz(offer.price)}, above cap S ${usdz(status.cap)}`, {
         status: 409,
         supplier: feed.id,
-        price: probe.offer.price.toString(),
+        price: offer.price.toString(),
         cap: status.cap.toString(),
         tx,
       });
     }
 
+    const startedAt = Date.now();
     const paid = await ctx.rail.payer(ctx.files.credential, ctx.files.mandateKey).pay(target);
+    if (!paid.paid && paid.refusal?.stage === "in-doubt") {
+      // A timeout is unconfirmed, not failed. Look the payment up before anything else; never pay again blind.
+      const { account } = requireAccount();
+      const rows = await ctx.rail.settlements(feed.payTo, startedAt - 2000);
+      const nonce = paid.refusal.nonce;
+      // Match by nonce when the facilitator reports it; otherwise the newest matching settlement we have not booked.
+      const hit = nonce && rows.some((r) => r.nonce)
+        ? rows.find((r) => r.nonce === nonce)
+        : rows
+            .filter((r) => r.payer.toLowerCase() === account.toLowerCase() && r.amount === offer.requirement.amount && !bought.has(r.transaction))
+            .sort((a, b) => b.settledAt - a.settledAt)[0];
+      report("sourcing", "sourcing.in_doubt", {
+        supplier: feed.id,
+        name: feed.name,
+        symbol,
+        settled: !!hit,
+        tx: hit?.transaction,
+        resolution: hit ? "found in /settlements: paid once, booked, not paid again" : "not settled: nothing was paid",
+      });
+      if (hit) {
+        bought.add(hit.transaction);
+        report("sourcing", "sourcing.bought", { supplier: feed.id, name: feed.name, symbol, tx: hit.transaction, amount: offer.price, payee: feed.payTo, inDoubt: true });
+      }
+      throw new QmError("settlement_in_doubt", "upstream payment was in doubt; no data delivered for this request", { status: 409 });
+    }
     if (!paid.paid) {
       const code = paid.refusal?.code ?? "payment_failed";
-      report("sourcing", "sourcing.refused", { supplier: feed.id, name: feed.name, symbol, price: probe.offer.price, cap: status.cap, code, stage: paid.refusal?.stage, offerHash });
+      report("sourcing", "sourcing.refused", { supplier: feed.id, name: feed.name, symbol, price: offer.price, cap: status.cap, code, stage: paid.refusal?.stage, offerHash });
       throw new QmError(code, paid.refusal?.message ?? "purchase failed", { status: 409 });
     }
+    bought.add(paid.paid.tx);
     report("sourcing", "sourcing.bought", { supplier: feed.id, name: feed.name, symbol, tx: paid.paid.tx, amount: paid.paid.amount, payee: paid.paid.payee, mandateId: paid.paid.mandateId });
     return { supplier: feed.id, name: feed.name, tx: paid.paid.tx, amount: paid.paid.amount, data: paid.body };
   }));

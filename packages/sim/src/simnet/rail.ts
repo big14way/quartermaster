@@ -267,7 +267,12 @@ export class SimMetal implements OwnerRail, AgentRail, FacilitatorReader {
             status: 402,
             body: resBody,
             headers: headersOf(second),
-            refusal: { code: err, message: `payment refused: ${err}; nothing was paid`, stage: err === "settlement_in_doubt" ? "in-doubt" : "verify" },
+            refusal: {
+              code: err,
+              message: err === "settlement_in_doubt" ? "payment in doubt at settlement: look it up before paying again" : `payment refused: ${err}; nothing was paid`,
+              stage: err === "settlement_in_doubt" ? "in-doubt" : "verify",
+              nonce: payment.nonce,
+            },
           };
         }
         const pr = decodeHeader<PaymentResponse>(second.headers.get(HEADER_RESPONSE));

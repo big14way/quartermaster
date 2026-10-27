@@ -47,7 +47,8 @@ export interface PaidResult {
   body: unknown;
   headers: Record<string, string>;
   paid?: { tx: string; amount: Cents; payee: Address; mandateId?: string; signedOffer?: string; nonce?: string };
-  refusal?: { code: string; message: string; stage: "before-signing" | "verify" | "settle" | "in-doubt" | "seller" };
+  /** `nonce` is the signed payment's nonce, kept so an in-doubt payment can be looked up exactly. */
+  refusal?: { code: string; message: string; stage: "before-signing" | "verify" | "settle" | "in-doubt" | "seller"; nonce?: string };
 }
 
 /** Pays x402 routes under one mandate. The model using it can pick neither key nor limit. */
@@ -102,6 +103,8 @@ export interface SettlementRow {
   amount: string;
   transaction: string;
   settledAt: number;
+  /** The payment's nonce, when the facilitator includes it. */
+  nonce?: string;
 }
 
 /** Read side of the facilitator, used by the reconciler. */

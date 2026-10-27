@@ -1,11 +1,11 @@
-import { KIT, fromCents, getJson, sleep, url, usdz, type EventLog, type QmEvent } from "@qm/core";
+import { KIT, fromCents, getJson, mode, postJson, sleep, url, usdz, type EventLog, type QmEvent } from "@qm/core";
 import { initialAllocation, invoiceRequiredUsd } from "@qm/policy";
 import { callInternal, requireAccount } from "@qm/runtime";
 import type { PlanDesk } from "./planning";
 
 export const STEPS = [
   { id: "setup", title: "Accounts, mandates and the opening split", narration: "One Metal account gets 20 USDZ. The controller splits it across three mandates so the licence fee and refunds are covered, and the keyring binds them on chain. A customer with three buyer agents signs up." },
-  { id: "sell", title: "Selling queries", narration: "Buyer agents pay 5 cents a call over x402 with a signed order. For each sale the sourcing agent buys a 2 cent quote from Feed A under mandate S. Feed A serves stale data for a few calls." },
+  { id: "sell", title: "Selling queries", narration: "Buyer agents pay 5 cents a call over x402 with a signed order. For each sale the sourcing agent buys a 2 cent quote from Feed A under mandate S. One upstream settlement times out: sourcing looks it up in /settlements instead of paying again. Feed A serves stale data for a few calls." },
   { id: "spike", title: "Supplier raises its price", narration: "Feed A goes to 4 cents and Feed B to 5. The next purchase is refused on chain with mandate_cap_exceeded. Buyers get a 503 and are not charged. The planner ranks the options." },
   { id: "approve", title: "Approval and mandate rewrite", narration: "The founder approves a change bound to its exact numbers. The keyring checks live state, replaces R and then S on chain, and both mandates verify. Sourcing resumes at the new price." },
   { id: "disputes", title: "Disputed batch", narration: "A buyer disputes five charges. Support checks each signed order against the chain and each delivery record, refunds the stale ones under R, and rejects the fresh one with evidence." },
@@ -139,6 +139,11 @@ export class Director {
 
     sell: async () => {
       await callInternal("buyers", "/run", { count: 9 });
+      if (mode() === "offline") {
+        // Timeout drill: the next settlement lands on chain but its receipt "times out".
+        await postJson(`${url("simnet")}/admin/fault`, { nextSettle: "settlement_in_doubt" });
+        await callInternal("buyers", "/run", { count: 1 });
+      }
       await callInternal("feedA", "/admin/degrade", { on: true });
       await callInternal("buyers", "/run", { count: 4, only: KIT.customer.buyers[0] });
       await callInternal("feedA", "/admin/degrade", { on: false });

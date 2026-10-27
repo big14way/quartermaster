@@ -125,7 +125,7 @@ export function simnetApp(chain: SimChain) {
     return chain.facilitatorSettle(p, req.body.paymentRequirements);
   }));
   fac.get("/settlements", wrap((req) => ({
-    settlements: chain.settlements(String(req.query.payTo ?? ""), Number(req.query.since ?? 0)).map(({ nonce: _n, ...row }) => row),
+    settlements: chain.settlements(String(req.query.payTo ?? ""), Number(req.query.since ?? 0)),
   })));
   app.use("/x402/facilitator", fac);
 

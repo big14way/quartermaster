@@ -97,7 +97,7 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
         const run = { code: code ?? 1, stdout, stderr, lines: parseNameValue(stdout) };
         if (run.code !== 0 && !(opts.allowExit ?? []).includes(run.code)) {
           const msg = (stderr.match(/error: (.*)/)?.[1] ?? stderr.trim()) || `exit ${run.code}`;
-          reject(new QmError(refusalCode(msg), redact(msg, this.cfg.rpcUrl), { args: args[0], exit: run.code }));
+          reject(new QmError(refusalCode(msg), redact(msg, this.cfg.rpcUrl), { args: args[0], exit: run.code, nonce: first(run.lines, "nonce") }));
           return;
         }
         resolve(run);
@@ -347,7 +347,7 @@ export class LiveMetal implements OwnerRail, AgentRail, FacilitatorReader {
               : /at settlement/.test(msg)
                 ? "settle"
                 : "verify";
-          return { status: 402, body: undefined, headers: {}, refusal: { code: refusalCode(msg), message: msg, stage } };
+          return { status: 402, body: undefined, headers: {}, refusal: { code: refusalCode(msg), message: msg, stage, nonce: e.details?.nonce as string | undefined } };
         }
       },
     };
