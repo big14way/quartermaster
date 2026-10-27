@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { canonicalHash, optionalEnv } from "@qm/core";
-import type { LlmRecorder } from "./planner";
+import { DEFAULT_MODEL, fallbackParams, type LlmRecorder } from "./planner";
 
 const InvoiceSchema = z.object({
   invoice_id: z.string(),
@@ -32,7 +32,7 @@ async function extract<T>(
   fallback: (text: string) => T,
   recorder?: LlmRecorder,
 ): Promise<{ fields: T; source: "claude" | "replay" | "rules"; model: string; error?: string }> {
-  const model = optionalEnv("QM_ASSIST_MODEL") ?? "claude-sonnet-5-5";
+  const model = optionalEnv("QM_ASSIST_MODEL") ?? DEFAULT_MODEL;
   const inputHash = canonicalHash({ kind, model, system, text });
   const recorded = recorder?.lookup(kind, inputHash) as T | undefined;
   if (recorded) return { fields: recorded, source: "replay", model };
@@ -47,8 +47,7 @@ async function extract<T>(
     const response = await client.beta.messages.parse({
       model,
       max_tokens: 4000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      ...fallbackParams(model),
       output_config: { effort: "low", format: betaZodOutputFormat(schema) },
       system,
       messages: [{ role: "user", content: text }],

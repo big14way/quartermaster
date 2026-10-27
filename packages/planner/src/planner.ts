@@ -16,6 +16,16 @@ const PlannerSchema = z.object({
   rejected: z.array(z.object({ option: z.enum(OPTION_IDS), why: z.string() })),
 });
 
+/**
+ * Server-side refusal fallbacks exist for the Opus, Sonnet and Fable lines; Claude Haiku 5.5
+ * has none, so it gets no `fallbacks` parameter and a refusal falls to the rule-based path.
+ */
+export function fallbackParams(model: string): { betas?: ["server-side-fallback-2026-07-01"]; fallbacks?: "default" } {
+  return /^claude-(opus|sonnet|fable)-/.test(model) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : {};
+}
+
+export const DEFAULT_MODEL = "claude-haiku-5-5";
+
 /** Every LLM call is recorded with a hash of its input, so a replay returns the same output. */
 export interface LlmRecorder {
   lookup(kind: string, inputHash: string): unknown | undefined;
@@ -97,7 +107,7 @@ export function plannerInput(state: PlanState, options: PlanOption[]) {
  * the recorder has one for the same input (replays).
  */
 export async function planWithClaude(state: PlanState, options: PlanOption[], recorder?: LlmRecorder): Promise<PlannerResult> {
-  const model = optionalEnv("QM_PLANNER_MODEL") ?? "claude-opus-5-5";
+  const model = optionalEnv("QM_PLANNER_MODEL") ?? DEFAULT_MODEL;
   const input = plannerInput(state, options);
   const inputHash = canonicalHash({ model, system: SYSTEM, input });
 
@@ -115,8 +125,7 @@ export async function planWithClaude(state: PlanState, options: PlanOption[], re
     const response = await client.beta.messages.parse({
       model,
       max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      ...fallbackParams(model),
       output_config: { effort: "high", format: betaZodOutputFormat(PlannerSchema) },
       system: SYSTEM,
       messages: [{ role: "user", content: `Live state and the option table, as JSON:\n\n${toJson(input, 2)}` }],

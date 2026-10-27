@@ -164,8 +164,9 @@ On top of these, the event log's hash chain must verify.
 
 ## Claude
 
-- **Planner** (`claude-opus-5-5`): the treasury agent sends it the option table, with every number already computed. It returns a pick, a ranking and a plain-language explanation for the approver, as structured output. The policy engine accepts the pick only if it is an enumerated, feasible option and its numbers match exactly. Otherwise a deterministic rule picks the highest-margin feasible option.
-- **Extraction** (`claude-sonnet-5-5`): reads the supplier invoice into strict fields and reads dispute claims. Code validates the invoice (IBAN mod-97, currency, amount, date) and decides every refund.
+- **Planner** (`claude-haiku-5-5` by default): the treasury agent sends it the option table, with every number already computed. It returns a pick, a ranking and a plain-language explanation for the approver, as structured output. The policy engine accepts the pick only if it is an enumerated, feasible option and its numbers match exactly. Otherwise a deterministic rule picks the highest-margin feasible option.
+- **Extraction** (`claude-haiku-5-5` by default): reads the supplier invoice into strict fields and reads dispute claims. Code validates the invoice (IBAN mod-97, currency, amount, date) and decides every refund.
+- **Models** are set by `QM_PLANNER_MODEL` and `QM_ASSIST_MODEL`. Server-side refusal fallbacks are sent only to models that have them (Opus, Sonnet, Fable); on Haiku a refusal falls to the rule-based path.
 - **Without `ANTHROPIC_API_KEY`**, rule-based paths run instead, and the dashboard says which source made each decision.
 
 ---
