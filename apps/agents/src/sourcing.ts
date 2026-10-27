@@ -51,7 +51,9 @@ export function mountSourcing(app: Express, ctx: AgentContext) {
     const target = `${feed.url}/quote?symbol=${encodeURIComponent(symbol)}`;
     const probe = await probeOffer(target);
     if (!probe.offer) throw new QmError("no_offer", `${feed.name} sent no exact USDZ offer`, { status: 502 });
-    const status = await ctx.status();
+    let status = await ctx.status();
+    // Never refuse on a cached cap: confirm against the chain first.
+    if (probe.offer.price > status.cap) status = await ctx.status(true);
     const offerHash = canonicalHash(probe.offer.requirement);
 
     if (probe.offer.price > status.cap) {

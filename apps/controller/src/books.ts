@@ -63,20 +63,37 @@ export class Books {
     }
     const o = evt.data.object as Record<string, string>;
     this.bus.append({ type: "awx.webhook", actor: "airwallex", data: { id: evt.id, name: evt.name, object: o.id ?? o.conversion_id } });
-    if (evt.name === "deposit.settled") {
-      if (!this.isSweepTx(o.reference ?? "")) {
-        this.bus.append({ type: "awx.deposit_unmatched", actor: "controller", data: { depositId: o.id, reference: o.reference, amount: o.amount } });
-        return;
-      }
-      const amount = toCents(String(o.amount));
-      const fake = { seq: 0 } as QmEvent;
-      this.post(postings.depositSettled(String(o.id), amount, { reference: o.reference }), fake);
-      this.bus.append({ type: "awx.deposit_settled", actor: "airwallex", data: { depositId: o.id, amount, currency: o.currency, reference: o.reference } });
-    }
+    if (evt.name === "deposit.settled") this.depositSettled(o, "webhook");
     if (evt.name === "conversion.settled") {
       this.post(postings.conversion(String(o.conversion_id), toCents(String(o.sell_amount)), toCents(String(o.buy_amount)), { requestId: o.request_id }), { seq: 0 } as QmEvent);
     }
     if (evt.name.startsWith("payout.transfer.")) this.applyTransfer(o, "webhook");
+  }
+
+  /** A settled deposit whose reference is one of our sweep tx hashes lands the sweep in USD. */
+  depositSettled(o: Record<string, string>, via: "webhook" | "poll") {
+    if (!this.isSweepTx(o.reference ?? "")) {
+      if (via === "webhook") this.bus.append({ type: "awx.deposit_unmatched", actor: "controller", data: { depositId: o.id, reference: o.reference, amount: o.amount } });
+      return;
+    }
+    if (this.ledger.has("awx:deposit", String(o.id))) return;
+    const amount = toCents(String(o.amount));
+    this.post(postings.depositSettled(String(o.id), amount, { reference: o.reference }), { seq: 0 } as QmEvent);
+    this.bus.append({ type: "awx.deposit_settled", actor: "airwallex", data: { depositId: o.id, amount, currency: o.currency, reference: o.reference, via } });
+  }
+
+  /**
+   * The poller half of webhook handling: webhooks can be lost or late, so the latest
+   * Airwallex state is folded in through the same idempotent paths.
+   */
+  foldSnapshot(snap: { deposits: Record<string, string>[]; transfers: Record<string, string>[]; conversions: Record<string, string>[] }) {
+    for (const d of snap.deposits) if (d.status === "SETTLED") this.depositSettled(d, "poll");
+    for (const c of snap.conversions) {
+      if (c.status === "SETTLED" || c.status === "SCHEDULED") {
+        this.post(postings.conversion(String(c.conversion_id), toCents(String(c.sell_amount)), toCents(String(c.buy_amount)), { requestId: c.request_id }), { seq: 0 } as QmEvent);
+      }
+    }
+    for (const t of snap.transfers) this.applyTransfer(t, "poll");
   }
 
   /** Apply a transfer status from a webhook or a poll, never moving backwards. */

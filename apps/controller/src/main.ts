@@ -93,6 +93,22 @@ async function live() {
   }
 }
 
+// Poll Airwallex for anything a webhook did not deliver (no public tunnel, lost, late).
+if (!replayFile) {
+  let polling = false;
+  setInterval(async () => {
+    if (polling || !readAccount()) return;
+    polling = true;
+    try {
+      books!.foldSnapshot(await getJson(`${url("treasury")}/awx/snapshot`));
+    } catch {
+      /* treasury not ready yet */
+    } finally {
+      polling = false;
+    }
+  }, mode() === "live" ? 5000 : 4000);
+}
+
 const director = new Director(bus, desk, live, () => reconcile(bus, books!, desk, rail));
 
 const app = express();

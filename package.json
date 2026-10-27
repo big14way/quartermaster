@@ -13,7 +13,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "demo": "tsx scripts/demo.ts",
     "replay": "tsx scripts/replay.ts",
-    "dashboard:build": "pnpm --filter @qm/dashboard build"
+    "dashboard:build": "pnpm --filter @qm/dashboard build",
+    "live:check": "tsx scripts/live-check.ts",
+    "test:e2e": "tsx scripts/demo.ts --headless"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
@@ -28,6 +30,7 @@
     ]
   },
   "dependencies": {
-    "@qm/core": "workspace:*"
+    "@qm/core": "workspace:*",
+    "@qm/metal": "workspace:*"
   }
 }

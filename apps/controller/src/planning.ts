@@ -150,6 +150,12 @@ export class PlanDesk {
     this.bus.append({ type: "plan.opened", actor: "controller", data: { planId, trigger } });
     try {
       const state = await this.state(trigger);
+      if (trigger.price <= state.roles.sourcing.cap) {
+        // The cap already covers this price (a refusal that raced a replace). Nothing to plan.
+        this.open.status = "Verified";
+        this.bus.append({ type: "plan.dismissed", actor: "controller", data: { planId, why: `cap S is already ${state.roles.sourcing.cap} cents` } });
+        return;
+      }
       const options = enumerateOptions(state);
       this.bus.append({
         type: "plan.options",

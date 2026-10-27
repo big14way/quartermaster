@@ -36,8 +36,7 @@ export async function reconcile(bus: EventLog, books: Books, desk: PlanDesk, rai
   const account = requireAccount();
   const checks: Check[] = [];
   const snap = await getJson<Snapshot>(`${url("treasury")}/awx/snapshot`);
-  // The poller half of webhook handling: fold the latest transfer states in through the guard.
-  for (const t of snap.transfers) books.applyTransfer(t as unknown as Record<string, string>, "poll");
+  books.foldSnapshot(snap as never);
 
   // 1. Facilitator settlements to our account = sales in the ledger.
   const rows = await rail.settlements(account.account);

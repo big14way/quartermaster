@@ -150,6 +150,8 @@ async function bootstrap(body: { allocation: Record<Role, { cap: string; budget:
       description: descriptions[role],
     };
     const cred = await rail.createCredential({ principal: account, terms, out: files.credential });
+    // Keep the mandate key where the agent looks for it, whatever name the CLI chose.
+    if (cred.mandateKeyPath !== files.mandateKey) renameSync(cred.mandateKeyPath, files.mandateKey);
     const bound = await rail.bind(cred.credentialPath);
     if (!existsSync(publicFiles.issuer)) copyFileSync(cred.issuerPublicPath, publicFiles.issuer);
     publish(role, cred.credentialPath);

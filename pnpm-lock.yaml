@@ -11,6 +11,9 @@ importers:
       '@qm/core':
         specifier: workspace:*
         version: link:packages/core
+      '@qm/metal':
+        specifier: workspace:*
+        version: link:packages/metal
     devDependencies:
       '@types/express':
         specifier: 5.0.6

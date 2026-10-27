@@ -55,7 +55,9 @@ export function agentContext(role: Role): AgentContext {
     log,
     recorder: { lookup: () => undefined, record: (e) => report(role, "llm.call", e as unknown as Record<string, unknown>) },
     async status(fresh = false) {
-      if (!fresh && cached && Date.now() - cached.at < 3000) return cached.status;
+      // A cached status is only good while the credential on disk is the one it describes.
+      const onDisk = mandateIdOnDisk(files.credential);
+      if (!fresh && cached && cached.status.mandateId === onDisk && Date.now() - cached.at < 3000) return cached.status;
       const status = await rail.status(files.credential);
       cached = { at: Date.now(), status };
       return status;
