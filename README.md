@@ -40,7 +40,7 @@ The scenario follows the kit:
 | # | Step | What happens |
 |---|---|---|
 | 1 | **Accounts, mandates and the opening split** | The controller derives the split from first principles. Treasury gets the €5.00 licence fee plus the transfer fee at the live EUR/USD rate, plus a 2% buffer. Support gets more than the refund floor. Sourcing gets the rest. The keyring creates the account, funds it and binds three mandates. A customer business signs up with three buyer agents. The licence invoice is read and validated, including the IBAN checksum. |
-| 2 | **Selling queries** | Buyer agents pay 5 cents a call over x402 with a **signed order**. For each sale, the sourcing agent buys a quote from Feed A under mandate S. Feed A serves stale data for a few calls. Every sale is stored with its signed order, its tx hash and what was delivered. |
+| 2 | **Selling queries** | Buyer agents pay 5 cents a call over x402 with a **signed order**. For each sale, the sourcing agent buys a quote from Feed A under mandate S. Every sale is stored with its signed order, its tx hash and what was delivered. **Timeout drill:** one upstream settlement comes back `settlement_in_doubt`. The agent treats it as unconfirmed and looks it up in the facilitator's `/settlements` by nonce, books it once and never pays again blind. Feed A then serves stale data for a few calls. |
 | 3 | **Supplier raises its price** | Feed A goes to 4 cents and Feed B to 5. The sourcing agent reads the price from the 402 on every request. It refuses before signing, and records the refusal on chain (`mandate_cap_exceeded`). Buyers get a 503 and are **not charged**. Code enumerates options A–E with exact numbers, and the planner ranks them. |
 | 4 | **Approval and mandate rewrite** | The founder approves on the keyring's own page with a PIN that only the keyring holds. The keyring rebuilds the approval record from live chain state and a fresh 402 probe, and refuses on any drift. It then replaces **R (donor) before S (receiver)**. Both mandates pass `mandate verify`, I1–I5 hold, and sourcing resumes at the new price. |
 | 5 | **Disputed batch** | A buyer disputes five charges by tx hash. Support verifies each signed order against the payment on chain and checks the delivery record. It refunds the four stale ones under R, one payment id per refund, and rejects the fresh one with evidence. |
@@ -253,7 +253,10 @@ scripts/        demo supervisor, replay, live check
 runs/           event logs; sample-offline.jsonl is a recorded run
 ```
 
-Tests: run `pnpm test` (unit tests for money, hashing, the ledger, the Airwallex client, the simulators, the policy math and approval drift) and `pnpm test:e2e` (the whole offline story, which must reconcile). CI runs both on every push.
+Tests: run `pnpm test` and `pnpm test:e2e`. CI runs both on every push.
+
+- `pnpm test` runs 47 unit tests: money, hashing, the ledger, the Airwallex client and the simulators, the policy math and approval drift, webhook dedupe, the late-status guard and FAILED-after-PAID reversal.
+- `pnpm test:e2e` runs the whole offline story, which must reconcile.
 
 ## Licence
 
