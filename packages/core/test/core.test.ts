@@ -14,6 +14,7 @@ import {
   fromCents,
   readEvents,
   requestIds,
+  runScope,
   toCents,
   verifyChain,
 } from "../src";
@@ -66,7 +67,7 @@ describe("canonical json", () => {
 
 describe("request ids", () => {
   it("builds ids within the 47 character limit", () => {
-    expect(requestIds.transfer("LIC-2026-11", 1)).toBe("qm:tr:LIC-2026-11:1");
+    expect(requestIds.transfer(runScope("0xDb9E19aa00000000000000000000000012Fcba3e"), "LIC-2026-11", 1)).toBe("qm:tr:12fcba3e:LIC-2026-11:1");
     expect(() => assertRequestId("x".repeat(48))).toThrow(/limit is 47/);
   });
 });

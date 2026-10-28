@@ -13,13 +13,20 @@ export function assertRequestId(id: string): string {
 
 /**
  * Airwallex request_ids. `attempt` increments only after a terminal failure, never on a
- * network retry, so a retried call always reuses the id of the call it repeats.
+ * network retry, so a retried call always reuses the id of the call it repeats. `run` names
+ * the run (see runScope): a sandbox account outlives runs and never accepts an id twice, and
+ * a duplicate_request_id must load this run's object, not one a previous run created.
  */
 export const requestIds = {
-  conversion: (invoiceId: string, attempt: number) => assertRequestId(`qm:cv:${invoiceId}:${attempt}`),
-  transfer: (invoiceId: string, attempt: number) => assertRequestId(`qm:tr:${invoiceId}:${attempt}`),
+  conversion: (run: string, invoiceId: string, attempt: number) => assertRequestId(`qm:cv:${run}:${invoiceId}:${attempt}`),
+  transfer: (run: string, invoiceId: string, attempt: number) => assertRequestId(`qm:tr:${run}:${invoiceId}:${attempt}`),
   globalAccount: (ccy: string, env: string) => assertRequestId(`qm:ga:${ccy}:${env}`),
 };
+
+/** A run's scope in request_ids: the last 8 hex digits of its Metal account, fresh per run. */
+export function runScope(account: string): string {
+  return account.slice(-8).toLowerCase();
+}
 
 export function newId(prefix: string, bytes = 6): string {
   return `${prefix}_${randomBytes(bytes).toString("hex")}`;

@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { Express } from "express";
 import { AirwallexError, beneficiaryId, orientRate, sellPerBuy, type Balance, type BeneficiaryInput, type Deposit, type Transfer, type TransferStatus } from "@qm/airwallex";
-import { KIT, QmError, fromCents, mode, paymentIds, requestIds, sleep, toCents, usdz, type Cents } from "@qm/core";
+import { KIT, QmError, fromCents, mode, paymentIds, requestIds, runScope, sleep, toCents, usdz, type Cents } from "@qm/core";
 import { DocStore } from "@qm/ledger";
 import { extractInvoice, planWithClaude } from "@qm/planner";
 import { reviveOptions, revivePlanState, type PlanOption, type PlanState } from "@qm/policy";
@@ -245,7 +245,7 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
         buyEUR: toCents(quote.buy_amount),
         validTo: quote.valid_to_at,
       });
-      const conv = await awx.createConversion({ request_id: requestIds.conversion(id, inv.attempt), sell_currency: "USD", buy_currency: "EUR", buy_amount: fromCents(buy), quote_id: quote.quote_id });
+      const conv = await awx.createConversion({ request_id: requestIds.conversion(runScope(requireAccount().account), id, inv.attempt), sell_currency: "USD", buy_currency: "EUR", buy_amount: fromCents(buy), quote_id: quote.quote_id });
       inv = docs.put("invoices", id, { ...inv, status: "Converted", conversionId: conv.value.conversion_id });
       report("treasury", "fx.converted", {
         invoiceId: id,
@@ -259,7 +259,7 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
 
     const beneficiary = await ensureBeneficiary(inv);
     const body = {
-      request_id: requestIds.transfer(id, inv.attempt),
+      request_id: requestIds.transfer(runScope(requireAccount().account), id, inv.attempt),
       beneficiary_id: beneficiary,
       source_currency: "EUR",
       transfer_currency: "EUR",

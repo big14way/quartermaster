@@ -149,7 +149,7 @@ The approval page shows exactly these fields. Before sending anything, the keyri
 
 **Idempotency.**
 
-- **Airwallex `request_id`s** are `qm:cv:{invoice}:{attempt}` and `qm:tr:{invoice}:{attempt}`, at most 47 characters. They are retried only for conversions and transfers, and always with the same id:
+- **Airwallex `request_id`s** are `qm:cv:{run}:{invoice}:{attempt}` and `qm:tr:{run}:{invoice}:{attempt}`, at most 47 characters. `{run}` is the end of the run's Metal account address, because a sandbox account outlives runs and refuses a used id forever. They are retried only for conversions and transfers, and always with the same id:
   - `duplicate_request_id` loads the existing object;
   - `409 request_pending` backs off.
 - **The deposit's idempotency key is the sweep tx hash.** The treasury agent scans `GET /deposits` for it before creating one.
