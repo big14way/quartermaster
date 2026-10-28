@@ -56,6 +56,11 @@ export class Books {
     return this.ledger.has("metal:sweep", tx);
   }
 
+  /** True once a settled deposit is booked. It is announced once, so a resumed run asks here. */
+  depositBooked(depositId: string): boolean {
+    return this.ledger.has("awx:deposit", depositId);
+  }
+
   onWebhook(evt: WebhookEvent) {
     if (!this.docs.create("webhooks", evt.id, { name: evt.name, at: evt.created_at })) {
       this.bus.append({ type: "awx.webhook_duplicate", actor: "airwallex", data: { id: evt.id, name: evt.name } });

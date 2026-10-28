@@ -48,6 +48,7 @@ export class Director {
     private readonly desk: PlanDesk,
     private readonly snapshot: () => Promise<unknown>,
     private readonly reconcile: () => Promise<{ ok: boolean }>,
+    private readonly books?: { depositBooked(id: string): boolean; transferStatus(id: string): string | undefined },
   ) {}
 
   private waitFor(pred: (e: QmEvent) => boolean, timeoutMs: number, since = 0): Promise<QmEvent> {
@@ -177,13 +178,15 @@ export class Director {
     },
 
     treasury: async () => {
+      // Mark the start before the slow state read: the poller can book the deposit meanwhile.
+      const since = this.bus.events.length;
       const state = await this.desk.state();
       const amount = invoiceRequiredUsd(state);
-      const since = this.bus.events.length;
-      await callInternal("treasury", "/sweep", { sweepId: "sweep-1", amount: fromCents(amount) });
-      await this.waitFor((e) => e.type === "awx.deposit_settled", 5 * 60_000, since);
-      await callInternal("treasury", "/pay-invoice", { invoiceId: state.invoice.id, drill: "crash-after-create" });
-      await this.waitFor((e) => e.type === "awx.transfer_status" && (e.data as { status?: string; ignored?: boolean }).status === "PAID" && !(e.data as { ignored?: boolean }).ignored, 5 * 60_000, since);
+      const sweep = await callInternal<{ depositId?: string }>("treasury", "/sweep", { sweepId: "sweep-1", amount: fromCents(amount) });
+      // Books announce a deposit or a PAID transfer once; a resumed run finds it booked instead.
+      if (!(sweep.depositId && this.books?.depositBooked(sweep.depositId))) await this.waitFor((e) => e.type === "awx.deposit_settled", 5 * 60_000, since);
+      const paid = await callInternal<{ transferId: string }>("treasury", "/pay-invoice", { invoiceId: state.invoice.id, drill: "crash-after-create" });
+      if (this.books?.transferStatus(paid.transferId) !== "PAID") await this.waitFor((e) => e.type === "awx.transfer_status" && (e.data as { status?: string; ignored?: boolean }).status === "PAID" && !(e.data as { ignored?: boolean }).ignored, 5 * 60_000, since);
       this.bus.append({ type: "story.note", actor: "director", data: { text: `Swept ${usdz(amount)}: the fee and transfer fee at the live rate plus buffer.` } });
     },
 

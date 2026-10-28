@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { Express } from "express";
-import { AirwallexError, beneficiaryId, orientRate, sellPerBuy, type BeneficiaryInput, type Deposit, type Transfer, type TransferStatus } from "@qm/airwallex";
+import { AirwallexError, beneficiaryId, orientRate, sellPerBuy, type Balance, type BeneficiaryInput, type Deposit, type Transfer, type TransferStatus } from "@qm/airwallex";
 import { KIT, QmError, fromCents, mode, paymentIds, requestIds, sleep, toCents, usdz, type Cents } from "@qm/core";
 import { DocStore } from "@qm/ledger";
 import { extractInvoice, planWithClaude } from "@qm/planner";
@@ -70,7 +70,9 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
         entity_type: "COMPANY",
         company_name: inv.vendor,
         address: { city: l.city, country_code: l.country, postcode: l.postcode, street_address: l.street },
-        bank_details: { account_currency: "EUR", account_name: inv.vendor, bank_country_code: inv.iban.slice(0, 2), iban: inv.iban, swift_code: inv.bic, local_clearing_system: "SEPA" },
+        // No local_clearing_system: the sandbox rejects "SEPA" as beneficiary_type_unsupported
+        // and routes a LOCAL EUR payout to a DE IBAN without it.
+        bank_details: { account_currency: "EUR", account_name: inv.vendor, bank_country_code: inv.iban.slice(0, 2), iban: inv.iban, swift_code: inv.bic },
       },
     };
   }
@@ -95,6 +97,9 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
 
   app.post("/setup", requireInternal, route(async () => {
     const { usd, eur } = await ensureAccounts();
+    // A sandbox account outlives a run and comes with seeded balances, so the books close on
+    // the change since this first setup of the run's state.
+    docs.create("awx", "opening", { at: new Date().toISOString(), balances: await awx.balances() });
     report("treasury", "awx.accounts_ready", { usd: usd.id, eur: eur.id });
     return { usd: usd.id, eur: eur.id };
   }));
@@ -112,7 +117,8 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
     const transfers: Transfer[] = [];
     for (const i of inv) if (i.transferId) transfers.push(await awx.getTransfer(i.transferId));
     const conversions = await Promise.all(inv.filter((i) => i.conversionId).map((i) => awx.getConversion(i.conversionId!)));
-    return { balances: await awx.balances(), deposits, transfers, conversions, sweeps: docs.list<Sweep>("sweeps"), invoices: inv };
+    const opening = docs.get<{ balances: Balance[] }>("awx", "opening")?.balances;
+    return { balances: await awx.balances(), opening, deposits, transfers, conversions, sweeps: docs.list<Sweep>("sweeps"), invoices: inv };
   }));
 
   /** Invoices with their paid state read from the transfer itself, not from memory. */
@@ -196,9 +202,19 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
       report("treasury", "deposit.simulated", { sweepId: id, depositId: dep.id, amount, reference: s.tx, reused: !!existing });
     }
     if (s.status === "DepositSimulated") {
-      const found = await awx.findDepositByReference(s.tx!);
-      if (found?.status !== "SETTLED") await awx.settleDeposit(s.depositId!).catch((err) => {
-        if (!(err instanceof AirwallexError && err.body.code === "invalid_status")) throw err;
+      // The sandbox settles simulated deposits by itself within a second or two and then
+      // answers settle with not_found; GET /deposits also lags the create. Settle only what
+      // is still pending, and accept not_found once the listing shows the deposit SETTLED.
+      const settled = async () => (await awx.findDepositByReference(s.tx!))?.status === "SETTLED";
+      if (!(await settled())) await awx.settleDeposit(s.depositId!).catch(async (err) => {
+        if (err instanceof AirwallexError && err.body.code === "invalid_status") return;
+        if (err instanceof AirwallexError && err.body.code === "not_found") {
+          for (let i = 0; i < 15; i++) {
+            if (await settled()) return;
+            await sleep(1000);
+          }
+        }
+        throw err;
       });
       s = docs.put("sweeps", id, { ...s, status: "Settled" });
       report("treasury", "sweep.settled", { sweepId: id, depositId: s.depositId, amount, reference: s.tx });

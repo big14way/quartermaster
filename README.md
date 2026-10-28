@@ -169,8 +169,10 @@ The approval page shows exactly these fields. Before sending anything, the keyri
 2. Every mandate, current and replaced, passes `mandate verify`, and its on-chain spend = ledger spend.
 3. On-chain account balance = ledger.
 4. Σ ramp sweeps (USDZ) = Σ settled Airwallex deposits whose reference is a sweep tx (USD, 1:1).
-5. USD deposits − conversion sells = USD balance = ledger.
-6. EUR bought = licence fee + transfer fee; the transfer is PAID; licence payable = 0.
+5. USD deposits − conversion sells = change in the USD balance since setup = ledger.
+6. EUR bought = licence fee + transfer fee = change in the EUR balance since setup + paid out; the transfer is PAID; licence payable = 0.
+
+Checks 5 and 6 measure from the balances recorded at setup, because a sandbox account outlives a run and comes with seeded balances. Neither balance may end below where it started: a run spends only what it brought in.
 7. I1–I5 hold.
 
 On top of these, the event log's hash chain must verify.
@@ -241,7 +243,8 @@ Then fill in `.env` (copy `.env.example`):
 | `METAL_RPC_URL` | the endpoint from the `rpc-aas-endpoint` header. It is a credential. |
 | `QM_FUNDER_KEY` | `.metal/rpc-payer.json`. Setup is paid by exact USDZ transfers from this key instead of the faucet, which allows one grant a minute and ten a day per IP. A run uses about 26 testnet USDZ. |
 | `QM_RAMP_ADDRESS` | the address of `.metal/ramp.json` |
-| `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_API_KEY` | sandbox keys. Leave them empty to keep Airwallex on the simulator, which every surface labels. |
+| `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_API_KEY` | sandbox keys. Leave them empty to keep Airwallex on the simulator, which every surface labels. A scoped key on the account needs read on Balances and Deposits, read and write on Global Accounts, Beneficiaries, Transfers and Conversion, and write on Simulations. |
+| `QM_TRANSFER_FEE_EUR` | the payout fee to budget for against real Airwallex. The sandbox charged EUR 2.69 for a LOCAL payout to a DE IBAN, not the kit page's EUR 0.15, so set `2.69`. Treasury then gets about 9 USDZ instead of 6. |
 | `ANTHROPIC_API_KEY` | optional. The planner and extraction use `claude-haiku-5-5`. |
 
 Run `pnpm live:check` to drive a throwaway account through every CLI command Quartermaster parses, then `pnpm demo --live` (add `--headless` to run the whole story). Airwallex webhooks are optional, because the poller covers them. To receive them, point a public tunnel at `POST /webhooks/airwallex` and set `AIRWALLEX_WEBHOOK_SECRET`.

@@ -18,6 +18,8 @@ export interface Check {
 
 interface Snapshot {
   balances: Balance[];
+  /** Balances at the run's first setup; the sandbox account outlives runs and starts seeded. */
+  opening?: Balance[];
   deposits: Deposit[];
   transfers: Transfer[];
   conversions: Conversion[];
@@ -122,20 +124,23 @@ export async function reconcile(bus: EventLog, books: Books, desk: PlanDesk, rai
     detail: onePerSweep ? "each sweep tx is the reference of exactly one deposit" : "a sweep has no deposit or more than one",
   });
 
-  // 5. USD: deposits − conversion sells = USD balance = ledger.
-  const usd = toCents(snap.balances.find((b) => b.currency === "USD")?.available_amount ?? "0");
+  // 5. USD: deposits − conversion sells = USD balance moved since setup = ledger.
+  const held = (list: Balance[] | undefined, ccy: string) => toCents(list?.find((b) => b.currency === ccy)?.available_amount ?? "0");
+  const moved = (ccy: string) => held(snap.balances, ccy) - held(snap.opening, ccy);
+  const usd = moved("USD");
   const sold = sumCents(snap.conversions.filter((c) => c.sell_currency === "USD").map((c) => toCents(c.sell_amount)));
   checks.push({
     id: 5,
     title: "USD account: deposits − conversions = balance",
-    ok: depTotal - sold === usd && ledger.balance(A.awxUSD, "USD") === usd,
+    // Never below the opening balance: the run spends only what it brought in.
+    ok: usd >= 0n && depTotal - sold === usd && ledger.balance(A.awxUSD, "USD") === usd,
     left: `${fmt(depTotal, "USD")} − ${fmt(sold, "USD")}`,
     right: `balance ${fmt(usd, "USD")}, ledger ${fmt(ledger.balance(A.awxUSD, "USD"), "USD")}`,
-    detail: "GET /balances/current against awx:USD",
+    detail: "GET /balances/current, less the balance at setup, against awx:USD",
   });
 
   // 6. EUR: bought = transfer + fee; transfer PAID; licence payable = 0.
-  const eur = toCents(snap.balances.find((b) => b.currency === "EUR")?.available_amount ?? "0");
+  const eur = moved("EUR");
   const bought = sumCents(snap.conversions.filter((c) => c.buy_currency === "EUR").map((c) => toCents(c.buy_amount)));
   const paid = snap.transfers.filter((t) => t.status === "PAID");
   const out = sumCents(paid.map((t) => toCents(t.transfer_amount) + toCents(t.fee_amount ?? "0")));
@@ -143,7 +148,7 @@ export async function reconcile(bus: EventLog, books: Books, desk: PlanDesk, rai
   checks.push({
     id: 6,
     title: "EUR: bought = licence fee + transfer fee, paid",
-    ok: paid.length > 0 && bought - out === eur && payable === 0n && ledger.balance(A.awxEUR, "EUR") === eur,
+    ok: paid.length > 0 && eur >= 0n && bought - out === eur && payable === 0n && ledger.balance(A.awxEUR, "EUR") === eur,
     left: `bought ${fmt(bought, "EUR")}`,
     right: `paid ${fmt(out, "EUR")} (${paid.map((t) => `${t.transfer_amount} + fee ${t.fee_amount}`).join(", ") || "none"}), left ${fmt(eur, "EUR")}`,
     detail: `licence payable ${fmt(payable, "EUR")}; transfer ${paid.map((t) => t.status).join(", ") || snap.transfers.map((t) => t.status).join(", ") || "not created"}`,

@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import type { Cents } from "./money";
+import { toCents, type Cents } from "./money";
 import type { Mode, Role } from "./types";
 
 export function env(name: string, fallback?: string): string {
@@ -28,6 +28,16 @@ export function airwallexMode(): "sim" | "live" {
   const v = optionalEnv("QM_AIRWALLEX");
   if (v === "sim" || v === "live") return v;
   return mode() === "offline" ? "sim" : "live";
+}
+
+/**
+ * Transfer fee estimate for the licence payout, in EUR cents. The kit page's figure is
+ * EUR 0.15. The Airwallex sandbox charged EUR 2.69 for a LOCAL payout to a DE IBAN, so a
+ * run against real Airwallex reads QM_TRANSFER_FEE_EUR.
+ */
+function transferFeeEstimate(): Cents {
+  const v = airwallexMode() === "live" ? optionalEnv("QM_TRANSFER_FEE_EUR") : undefined;
+  return v ? toCents(v) : (15n as Cents);
 }
 
 export const DEFAULT_PORTS = {
@@ -111,7 +121,7 @@ export const KIT = {
     /** Buffer on the live rate when sizing the treasury budget, in basis points. */
     bufferBps: 200n,
     /** Transfer fee estimate in the payout currency's cents. */
-    feeEstimate: 15n as Cents,
+    feeEstimate: transferFeeEstimate(),
   },
   forecast: {
     callsPerHour: 120n,

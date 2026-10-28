@@ -110,7 +110,7 @@ if (!replayFile) {
   }, mode() === "live" ? 5000 : 4000);
 }
 
-const director = new Director(bus, desk, live, () => reconcile(bus, books!, desk, rail));
+const director = new Director(bus, desk, live, () => reconcile(bus, books!, desk, rail), books);
 
 const app = express();
 
