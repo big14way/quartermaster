@@ -35,6 +35,16 @@ export function airwallexMode(): "sim" | "live" {
  * EUR 0.15. The Airwallex sandbox charged EUR 2.69 for a LOCAL payout to a DE IBAN, so a
  * run against real Airwallex reads QM_TRANSFER_FEE_EUR.
  */
+/**
+ * The kit page's 20 USDZ fits its EUR 0.15 fee. At the sandbox's real fee treasury needs
+ * 9 USDZ, not 6, so a run against real Airwallex funds QM_ALLOCATION_USDZ (23: 10/4/9) and
+ * sourcing keeps its 10.
+ */
+function totalAllocation(): Cents {
+  const v = airwallexMode() === "live" ? optionalEnv("QM_ALLOCATION_USDZ") : undefined;
+  return v ? toCents(v) : (2000n as Cents);
+}
+
 function transferFeeEstimate(): Cents {
   const v = airwallexMode() === "live" ? optionalEnv("QM_TRANSFER_FEE_EUR") : undefined;
   return v ? toCents(v) : (15n as Cents);
@@ -83,13 +93,14 @@ export function runsDir(): string {
 }
 
 /**
- * The scenario from the kit: a data business whose three agents share 20 USDZ. A query
+ * The scenario from the kit: a data business whose three agents share 20 USDZ (23 against
+ * real Airwallex, see totalAllocation). A query
  * sells for 5 cents and its upstream data costs 2 cents. The upstream price later rises
  * to 4 cents, past the sourcing cap of 3 cents.
  */
 export const KIT = {
   /** Total the three budgets may add up to, held in code (the account caps each budget, not the sum). */
-  totalAllocation: 2000n as Cents,
+  totalAllocation: totalAllocation(),
   /** Gas held back for owner-key transactions when they are paid from the account. */
   gasReserve: 0n as Cents,
   sellPrice: 5n as Cents,

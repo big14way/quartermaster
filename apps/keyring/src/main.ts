@@ -39,7 +39,7 @@ import { generateP256, addressOfKey, publicOf, writeJson, writeKeyFile } from "@
 import { approvalPage, resultPage } from "./page";
 
 // The keyring is the only process that holds the owner key. It has no model in it. It
-// accepts two inputs: the opening allocation (checked against the 20 USDZ total), and a
+// accepts two inputs: the opening allocation (checked against the total allocation), and a
 // proposal that a human approved on this process's own page, whose hash it rebuilds from
 // live state before sending anything.
 

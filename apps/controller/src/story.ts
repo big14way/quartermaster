@@ -4,7 +4,7 @@ import { callInternal, requireAccount } from "@qm/runtime";
 import type { PlanDesk } from "./planning";
 
 export const STEPS = [
-  { id: "setup", title: "Accounts, mandates and the opening split", narration: "One Metal account gets 20 USDZ. The controller splits it across three mandates so the licence fee and refunds are covered, and the keyring binds them on chain. A customer with three buyer agents signs up." },
+  { id: "setup", title: "Accounts, mandates and the opening split", narration: `One Metal account gets ${usdz(KIT.totalAllocation)}. The controller splits it across three mandates so the licence fee and refunds are covered, and the keyring binds them on chain. A customer with three buyer agents signs up.` },
   { id: "sell", title: "Selling queries", narration: "Buyer agents pay 5 cents a call over x402 with a signed order. For each sale the sourcing agent buys a 2 cent quote from Feed A under mandate S. One upstream settlement times out: sourcing looks it up in /settlements instead of paying again. Feed A serves stale data for a few calls." },
   { id: "spike", title: "Supplier raises its price", narration: "Feed A goes to 4 cents and Feed B to 5. The next purchase is refused on chain with mandate_cap_exceeded. Buyers get a 503 and are not charged. The planner ranks the options." },
   { id: "approve", title: "Approval and mandate rewrite", narration: "The founder approves a change bound to its exact numbers. The keyring checks live state, replaces R and then S on chain, and both mandates verify. Sourcing resumes at the new price." },

@@ -34,7 +34,7 @@ pnpm demo                 # the same story on the dashboard at http://127.0.0.1:
 
 The scenario follows the kit:
 
-- The account holds **20 USDZ**, split across sourcing (10), support (4) and treasury (6).
+- The account holds **20 USDZ**, split across sourcing (10), support (4) and treasury (6). Against the real Airwallex sandbox it holds **23 USDZ** (10, 4, 9): the sandbox charges EUR 2.69 to pay the invoice, not the kit page's EUR 0.15, so treasury needs 9.
 - A query sells for **5 cents**. Its upstream data costs **2 cents**, under a **3 cent** cap.
 
 | # | Step | What happens |
@@ -130,7 +130,7 @@ flowchart LR
 
 | | Invariant |
 |---|---|
-| I1 | Σ budgets ≤ the 20 USDZ allocation, and Σ remaining ≤ balance − gas reserve. The account caps each budget; the sum is ours to enforce. |
+| I1 | Σ budgets ≤ the allocation (20 USDZ, or 23 against real Airwallex), and Σ remaining ≤ balance − gas reserve. The account caps each budget; the sum is ours to enforce. |
 | I2 | Treasury's remaining budget covers the licence fee at the live rate plus buffer. |
 | I3 | Support's remaining budget stays above the refund floor (P95 refunds/h × runway × price). |
 | I4 | Never buy above what we sell for: cap S ≤ sell price − minimum margin. |
@@ -245,6 +245,7 @@ Then fill in `.env` (copy `.env.example`):
 | `QM_RAMP_ADDRESS` | the address of `.metal/ramp.json` |
 | `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_API_KEY` | sandbox keys. Leave them empty to keep Airwallex on the simulator, which every surface labels. A scoped key on the account needs read on Balances and Deposits, read and write on Global Accounts, Beneficiaries, Transfers and Conversion, and write on Simulations. |
 | `QM_TRANSFER_FEE_EUR` | the payout fee to budget for against real Airwallex. The sandbox charged EUR 2.69 for a LOCAL payout to a DE IBAN, not the kit page's EUR 0.15, so set `2.69`. Treasury then gets about 9 USDZ instead of 6. |
+| `QM_ALLOCATION_USDZ` | the total the three budgets share against real Airwallex. Set `23`, so sourcing keeps its 10 next to treasury's 9 and the price-rise step can still move 0.50 USDZ from refunds. With 20, sourcing gets 7 and the planner correctly pauses and escalates instead. |
 | `ANTHROPIC_API_KEY` | optional. The planner and extraction use `claude-haiku-5-5`. |
 
 Run `pnpm live:check` to drive a throwaway account through every CLI command Quartermaster parses, then `pnpm demo --live` (add `--headless` to run the whole story). Airwallex webhooks are optional, because the poller covers them. To receive them, point a public tunnel at `POST /webhooks/airwallex` and set `AIRWALLEX_WEBHOOK_SECRET`.

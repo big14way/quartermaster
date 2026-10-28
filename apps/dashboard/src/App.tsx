@@ -95,7 +95,7 @@ function Allocation({ live }: { live?: Live }) {
         <h2>One account, three budgets</h2>
         <span className="dim">The account caps each budget. Quartermaster holds the sum.</span>
       </div>
-      <div className="gauge" role="img" aria-label="Budgets as a share of the 20 USDZ allocation">
+      <div className="gauge" role="img" aria-label={`Budgets as a share of the ${money(total)} allocation`}>
         {roles &&
           ROLES.map((r) => {
             const b = cents(roles[r].budget);
