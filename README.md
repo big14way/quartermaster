@@ -60,20 +60,21 @@ How the planner decides in step 3, with the numbers the demo produces:
 
 ### Verified on Metal testnet
 
-`runs/sample-live.jsonl` is a full live run, with Airwallex on the simulator. Replay it with `pnpm replay runs/sample-live.jsonl`. In that run:
+`runs/sample-live.jsonl` is a full live run against Metal testnet and the real Airwallex sandbox, with nothing simulated except what the sandbox itself simulates (the inbound deposit and the payout's progress). Replay it with `pnpm replay runs/sample-live.jsonl`. In that run:
 
+- **Setup:** the account was [created](https://testnet.metalntwx.com/tx/0xa614ea6d6ca186fc4812af9f845b19bcf2a9de30262feaf00d94e8885ffb47e4) and [funded with 23 USDZ](https://testnet.metalntwx.com/tx/0xd4402ccd11a7c359141137796fe833cc74a2f167884b0024a8e651a2a0addcca), split 10 / 4 / 9.
 - **34 sales** were paid over real x402 with signed orders. Each one bought a real upstream quote under mandate S.
-- **The 4 cent offer was refused** under cap S.
+- **The 4 cent offer was [refused on chain](https://testnet.metalntwx.com/tx/0xf06d0b8bd84d8908f569594b93c9440a363acaabbc5871cef0faa5883c38768a)** under cap S.
 - **The planner** (`claude-haiku-5-5`) picked option B.
 - **The keyring replaced R, then S, on chain:**
-  - [R replaced](https://testnet.metalntwx.com/tx/0xa1de2d3088bcf55a31db230e8acc72fb9ca8ea3923ac4da5d21a23fdeb8e6eea)
-  - [S replaced](https://testnet.metalntwx.com/tx/0xeff8610f83ea97f62f69d471b4713e8ae8f64539cba58282620fa43ccfe7bf90), with spend carried over
+  - [R replaced](https://testnet.metalntwx.com/tx/0x758eb5a366b971ece65008b4708c5df1b74d1ddf1e26c0c4bc2490a7d733aefe)
+  - [S replaced](https://testnet.metalntwx.com/tx/0x7a10f0e5f53ca407ad2cbd2bc1b0070ff3dd79f66ddab10317741461b0170eda), with spend carried over
 
   `mandate verify` passes for all of them.
 - **Disputes:** support verified each disputed signed order against its payment on chain and refunded four stale charges.
-- **Treasury:** it [swept 5.72 USDZ to the ramp](https://testnet.metalntwx.com/tx/0x173368180a01727f461d24081a82a6f006f7f97dd9253d8357af5d47baeb29b1).
-- **Drill:** the compromised support agent's 10 USDZ payout was [refused and recorded on chain](https://testnet.metalntwx.com/tx/0x9827a5ba1c5ee7adcd3c1af04deacae511d78993fa53135c6c4efc2b256318bf).
-- **Books:** all seven checks pass against the live facilitator and chain, to the cent.
+- **Treasury:** it [swept 8.84 USDZ to the ramp](https://testnet.metalntwx.com/tx/0x55a9a792f2dc0359ffdd6e45392afead7dbf338f8f1c4034d28f97de342cf01c). Airwallex booked a USD 8.84 deposit with the sweep's tx hash as its reference. A MIN_1 quote then bought EUR 7.69 for USD 8.66, and the EUR 5.00 payout (fee EUR 2.69) went SENT, then PAID. The executor was killed after `transfers/create`; the retry with the same `request_id` loaded the same transfer.
+- **Drill:** the compromised support agent's 10 USDZ payout was [refused and recorded on chain](https://testnet.metalntwx.com/tx/0x3e265aa3cb69071a79fcd6973ace47cf0b7b1674cf03a0944d9342887a0e5294).
+- **Books:** all seven checks pass against the live facilitator, the chain and Airwallex, to the cent.
 
 ---
 
@@ -241,7 +242,7 @@ Then fill in `.env` (copy `.env.example`):
 | Variable | Value |
 |---|---|
 | `METAL_RPC_URL` | the endpoint from the `rpc-aas-endpoint` header. It is a credential. |
-| `QM_FUNDER_KEY` | `.metal/rpc-payer.json`. Setup is paid by exact USDZ transfers from this key instead of the faucet, which allows one grant a minute and ten a day per IP. A run uses about 26 testnet USDZ. |
+| `QM_FUNDER_KEY` | `.metal/rpc-payer.json`. Setup is paid by exact USDZ transfers from this key instead of the faucet, which allows one grant a minute and ten a day per IP. A run uses about 29 testnet USDZ. |
 | `QM_RAMP_ADDRESS` | the address of `.metal/ramp.json` |
 | `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_API_KEY` | sandbox keys. Leave them empty to keep Airwallex on the simulator, which every surface labels. A scoped key on the account needs read on Balances and Deposits, read and write on Global Accounts, Beneficiaries, Transfers and Conversion, and write on Simulations. |
 | `QM_TRANSFER_FEE_EUR` | the payout fee to budget for against real Airwallex. The sandbox charged EUR 2.69 for a LOCAL payout to a DE IBAN, not the kit page's EUR 0.15, so set `2.69`. Treasury then gets about 9 USDZ instead of 6. |
