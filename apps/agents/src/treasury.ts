@@ -202,14 +202,15 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
       report("treasury", "deposit.simulated", { sweepId: id, depositId: dep.id, amount, reference: s.tx, reused: !!existing });
     }
     if (s.status === "DepositSimulated") {
-      // The sandbox settles simulated deposits by itself within a second or two and then
-      // answers settle with not_found; GET /deposits also lags the create. Settle only what
-      // is still pending, and accept not_found once the listing shows the deposit SETTLED.
+      // The sandbox settles simulated deposits by itself, usually within a few seconds but
+      // once after about 50, and then answers settle with not_found; GET /deposits also lags
+      // the create. Settle only what is still pending, and accept not_found once the listing
+      // shows the deposit SETTLED.
       const settled = async () => (await awx.findDepositByReference(s.tx!))?.status === "SETTLED";
       if (!(await settled())) await awx.settleDeposit(s.depositId!).catch(async (err) => {
         if (err instanceof AirwallexError && err.body.code === "invalid_status") return;
         if (err instanceof AirwallexError && err.body.code === "not_found") {
-          for (let i = 0; i < 15; i++) {
+          for (let i = 0; i < 120; i++) {
             if (await settled()) return;
             await sleep(1000);
           }
