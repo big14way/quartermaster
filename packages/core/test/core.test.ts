@@ -93,4 +93,16 @@ describe("event log", () => {
     expect(reopened.head).toBe(log.head);
     expect(reopened.append({ type: "d", actor: "test", data: {} }).seq).toBe(4);
   });
+
+  it("delivers events appended by a listener after the one it is handling", () => {
+    const log = new EventLog();
+    log.subscribe((e) => {
+      if (e.type === "refused") log.append({ type: "plan", actor: "test", data: {} });
+    });
+    const seen: number[] = [];
+    log.subscribe((e) => seen.push(e.seq));
+    log.append({ type: "refused", actor: "test", data: {} });
+    log.append({ type: "next", actor: "test", data: {} });
+    expect(seen).toEqual([1, 2, 3]);
+  });
 });

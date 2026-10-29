@@ -32,6 +32,8 @@ export class EventLog {
   private seq = 0;
   private last = GENESIS_HASH;
   private readonly listeners = new Set<(e: QmEvent) => void>();
+  private readonly pending: QmEvent[] = [];
+  private dispatching = false;
   readonly events: QmEvent[] = [];
 
   constructor(readonly file?: string) {
@@ -56,7 +58,17 @@ export class EventLog {
     const event: QmEvent = { ...base, hash: hashEvent(base) };
     if (this.file) appendFileSync(this.file, `${JSON.stringify(event)}\n`);
     this.ingest(event);
-    for (const fn of this.listeners) fn(event);
+    // A listener may append while it handles an event. Queue that event so every listener
+    // still sees seq order; the dashboard stream drops anything older than what it has seen.
+    this.pending.push(event);
+    if (!this.dispatching) {
+      this.dispatching = true;
+      try {
+        for (let e = this.pending.shift(); e; e = this.pending.shift()) for (const fn of this.listeners) fn(e);
+      } finally {
+        this.dispatching = false;
+      }
+    }
     return event;
   }
 
