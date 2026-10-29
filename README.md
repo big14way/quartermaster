@@ -171,7 +171,7 @@ The approval page shows exactly these fields. Before sending anything, the keyri
 3. On-chain account balance = ledger.
 4. Σ ramp sweeps (USDZ) = Σ settled Airwallex deposits whose reference is a sweep tx (USD, 1:1).
 5. USD deposits − conversion sells = change in the USD balance since setup = ledger.
-6. EUR bought = licence fee + transfer fee = change in the EUR balance since setup + paid out; the transfer is PAID; licence payable = 0.
+6. EUR bought = paid out (licence fee + transfer fee) + change in the EUR balance since setup; the transfer is PAID; licence payable = 0. Treasury buys the fee estimate plus the FX buffer, because the sandbox's EUR fee moves with the rate, so a few cents can stay in the account.
 
 Checks 5 and 6 measure from the balances recorded at setup, because a sandbox account outlives a run and comes with seeded balances. Neither balance may end below where it started: a run spends only what it brought in.
 7. I1–I5 hold.

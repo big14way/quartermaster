@@ -230,7 +230,10 @@ export function mountTreasury(app: Express, ctx: AgentContext) {
     const drill = req.body.drill === "crash-after-create";
     let inv = docs.get<InvoiceDoc>("invoices", id);
     if (!inv) throw new QmError("not_found", `invoice ${id} not booked`, { status: 404 });
-    const fee = KIT.fx.feeEstimate;
+    // The sandbox's EUR payout fee moves with the rate (2.69 one day, 2.70 the next), so buy
+    // the estimate plus the FX buffer, rounded up. What is left stays in the EUR account, and
+    // the sweep already carries the same buffer, so this never needs more USD than landed.
+    const fee = (KIT.fx.feeEstimate * (10_000n + KIT.fx.bufferBps) + 9_999n) / 10_000n;
     const buy = toCents(inv.amount) + fee;
 
     if (!inv.conversionId) {

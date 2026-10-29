@@ -139,7 +139,7 @@ export async function reconcile(bus: EventLog, books: Books, desk: PlanDesk, rai
     detail: "GET /balances/current, less the balance at setup, against awx:USD",
   });
 
-  // 6. EUR: bought = transfer + fee; transfer PAID; licence payable = 0.
+  // 6. EUR: bought = transfer + fee + what stays in the account; transfer PAID; licence payable = 0.
   const eur = moved("EUR");
   const bought = sumCents(snap.conversions.filter((c) => c.buy_currency === "EUR").map((c) => toCents(c.buy_amount)));
   const paid = snap.transfers.filter((t) => t.status === "PAID");
@@ -147,10 +147,10 @@ export async function reconcile(bus: EventLog, books: Books, desk: PlanDesk, rai
   const payable = ledger.balance(A.licencePayable, "EUR");
   checks.push({
     id: 6,
-    title: "EUR: bought = licence fee + transfer fee, paid",
+    title: "EUR: bought = licence fee + transfer fee + kept",
     ok: paid.length > 0 && eur >= 0n && bought - out === eur && payable === 0n && ledger.balance(A.awxEUR, "EUR") === eur,
     left: `bought ${fmt(bought, "EUR")}`,
-    right: `paid ${fmt(out, "EUR")} (${paid.map((t) => `${t.transfer_amount} + fee ${t.fee_amount}`).join(", ") || "none"}), left ${fmt(eur, "EUR")}`,
+    right: `paid ${fmt(out, "EUR")} (${paid.map((t) => `${t.transfer_amount} + fee ${t.fee_amount}`).join(", ") || "none"}), kept ${fmt(eur, "EUR")}`,
     detail: `licence payable ${fmt(payable, "EUR")}; transfer ${paid.map((t) => t.status).join(", ") || snap.transfers.map((t) => t.status).join(", ") || "not created"}`,
   });
 
