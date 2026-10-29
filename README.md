@@ -2,6 +2,8 @@
 
 **Three x402 agents, one Metal account, budgets that rebalance when supplier prices move.**
 
+**Demo video (4 min):** [youtu.be/9NyHmAIm7oc](https://youtu.be/9NyHmAIm7oc). It is one live run on Metal testnet and the Airwallex sandbox, the run in [`runs/sample-live.jsonl`](runs/sample-live.jsonl).
+
 Quartermaster runs a pay-per-call market data API with three AI agents that share one Metal account. Each agent spends under its own on-chain mandate:
 
 - **sourcing** buys upstream quotes;
