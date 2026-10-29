@@ -58,6 +58,8 @@ export interface Live {
   usdPerEur?: string;
   invoice?: { id: string; vendor: string; amount: string; dueAt: string; paid: boolean };
   awx?: { currency: string; available_amount: string }[];
+  /** Balances at the run's setup; a sandbox account outlives runs and starts seeded. */
+  awxOpening?: { currency: string; available_amount: string }[];
   plan?: { planId: string; status: string; option?: string };
   story?: { running?: string; done: string[]; error?: string };
 }

@@ -14,12 +14,20 @@ export function money(v: unknown, unit = "USDZ"): string {
   return unit ? `${s} ${unit}` : s;
 }
 
+/** "12.34" (an Airwallex major-unit amount) as integer cents. */
+export const decimalCents = (v: unknown): bigint => {
+  const [whole = "0", frac = ""] = String(v ?? "0").trim().split(".");
+  const neg = whole.startsWith("-");
+  const c = BigInt(whole.replace("-", "") || "0") * 100n + BigInt((frac + "00").slice(0, 2));
+  return neg ? -c : c;
+};
+
 export const short = (h: unknown, head = 6, tail = 4) => {
   const s = String(h ?? "");
   return s.length > head + tail + 2 ? `${s.slice(0, head)}…${s.slice(-tail)}` : s;
 };
 
-export const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+export const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
 export const pct = (part: bigint, whole: bigint) => (whole === 0n ? 0 : Number((part * 10000n) / whole) / 100);
 

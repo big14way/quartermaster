@@ -65,7 +65,7 @@ async function live() {
   }
   try {
     const state = await desk.state();
-    const awx = await getJson<{ balances: unknown[] }>(`${url("treasury")}/awx/snapshot`).catch(() => ({ balances: [] }));
+    const awx = await getJson<{ balances: unknown[]; opening?: unknown[] }>(`${url("treasury")}/awx/snapshot`).catch(() => ({ balances: [], opening: undefined }));
     const sup = await getJson<{ supplier: string; paused: boolean }>(`${url("sourcing")}/supplier`).catch(() => undefined);
     const roles = Object.fromEntries(ROLES.map((r) => [r, { ...state.roles[r], versions: credentialHistory(r).length }]));
     const value = {
@@ -83,6 +83,7 @@ async function live() {
       usdPerEur: state.usdPerEur,
       invoice: state.invoice,
       awx: awx.balances,
+      awxOpening: awx.opening,
       ledger: books?.ledger.trialBalance(),
       plan: desk.open,
       story: { running: director.running, done: director.done, error: director.error },

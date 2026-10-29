@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { runReconcile, runStep, useEvents, useLive, useMeta, type Live, type Meta, type QmEvent, type Role } from "./api";
 import { describe } from "./describe";
-import { LETTER, ROLE_JOB, ROLE_NAME, cents, money, pct, short, time } from "./format";
+import { LETTER, ROLE_JOB, ROLE_NAME, cents, decimalCents, money, pct, short, time } from "./format";
 
 const ROLES: Role[] = ["sourcing", "support", "treasury"];
 
@@ -390,12 +390,26 @@ function Treasury({ live, events, meta }: { live?: Live; events: QmEvent[]; meta
         <span className="dim small">{live?.usdPerEur ? `${Number(live.usdPerEur).toFixed(4)} USD/EUR` : ""}</span>
       </div>
       <div className="figures three">
-        {["USD", "EUR"].map((c) => (
-          <div key={c}>
-            <span className="dim">{c} balance</span>
-            <b>{live?.awx?.find((b) => b.currency === c)?.available_amount ?? "0.00"}</b>
-          </div>
-        ))}
+        {["USD", "EUR"].map((c) => {
+          const held = (list?: { currency: string; available_amount: string }[]) => decimalCents(list?.find((b) => b.currency === c)?.available_amount);
+          const now = held(live?.awx);
+          // A sandbox account outlives runs and starts seeded: show what this run moved.
+          if (!live?.awxOpening) {
+            return (
+              <div key={c}>
+                <span className="dim">{c} balance</span>
+                <b>{money(now, "")}</b>
+              </div>
+            );
+          }
+          const moved = now - held(live.awxOpening);
+          return (
+            <div key={c} title={`${c} balance ${money(now, "")}`}>
+              <span className="dim">{c} since setup</span>
+              <b>{moved > 0n ? "+" : ""}{money(moved, "")}</b>
+            </div>
+          );
+        })}
         <div>
           <span className="dim">Licence fee</span>
           <b>{live?.invoice ? `EUR ${money(live.invoice.amount, "")}` : "—"}</b>
