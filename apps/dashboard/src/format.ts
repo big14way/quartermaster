@@ -34,7 +34,7 @@ export const pct = (part: bigint, whole: bigint) => (whole === 0n ? 0 : Number((
 export const LETTER = { sourcing: "S", support: "R", treasury: "T" } as const;
 export const ROLE_NAME = { sourcing: "Sourcing", support: "Support", treasury: "Treasury" } as const;
 export const ROLE_JOB = {
-  sourcing: "Buys upstream quotes from listed feeds",
-  support: "Refunds buyers, any payee, small cap",
-  treasury: "Sweeps to the Airwallex ramp only",
+  sourcing: "Buys quotes from listed feeds",
+  support: "Refunds buyers, small cap",
+  treasury: "Pays the Airwallex ramp only",
 } as const;

@@ -1,4 +1,5 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { timingSafeEqual } from "node:crypto";
 import express from "express";
@@ -324,6 +325,13 @@ function pinOk(given: string) {
 const app = jsonApp();
 app.use("/approve", express.urlencoded({ extended: false }));
 
+// The approval page uses the dashboard's typeface, served from the keyring's own origin.
+const interFont = createRequire(import.meta.url).resolve("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2");
+app.get("/font/inter.woff2", (_req, res) => {
+  res.setHeader("cache-control", "public, max-age=86400");
+  res.sendFile(interFont);
+});
+
 app.post("/bootstrap", requireInternal, route((req) => bootstrap(req.body)));
 
 app.post("/proposals", requireInternal, route(async (req) => {
@@ -356,7 +364,7 @@ app.get("/approve/:id", (req, res) => {
   const p = state.proposals[String(req.params.id)];
   const t = String(req.query.t ?? "");
   if (!p || t !== approvalLinkToken(SECRET, p.record.plan_id, p.hash)) {
-    res.status(403).type("html").send(resultPage("Link not valid", "This approval link is not valid for any open plan."));
+    res.status(403).type("html").send(resultPage("Link not valid", "This approval link is not valid for any open plan.", false, mode(), airwallexMode()));
     return;
   }
   res.type("html").send(approvalPage(p.record, p.hash, p.status, p.approvalReasons, t, mode(), airwallexMode()));
@@ -368,7 +376,7 @@ app.post("/approve/:id", async (req, res, next) => {
     const t = String(req.body.t ?? "");
     const json = req.is("application/json");
     const reply = (status: number, title: string, body: string, data: unknown) =>
-      json ? res.status(status).json(data) : res.status(status).type("html").send(resultPage(title, body));
+      json ? res.status(status).json(data) : res.status(status).type("html").send(resultPage(title, body, title === "Approved and applied", mode(), airwallexMode()));
     if (!p || t !== approvalLinkToken(SECRET, p.record.plan_id, p.hash)) return reply(403, "Link not valid", "This approval link is not valid.", { code: "bad_link" });
     if (p.status !== "PendingApproval") return reply(409, "Already decided", `This plan is ${p.status}.`, { code: "decided", status: p.status });
     if (!pinOk(String(req.body.pin ?? ""))) return reply(403, "Wrong PIN", "The founder PIN did not match. Nothing was changed.", { code: "bad_pin" });
@@ -384,7 +392,10 @@ app.post("/approve/:id", async (req, res, next) => {
     report("keyring", "plan.approved", { planId: p.record.plan_id, approver, hash: p.hash, approvedAt: p.approval.approvedAt });
     const out = await execute(p.record.plan_id);
     const steps = out.steps.map((s) => `${s.role}: ${s.error ?? s.tx}`).join("<br>");
-    return reply(200, out.status === "Applied" ? "Approved and applied" : `Plan ${out.status}`, out.status === "Applied" ? `Mandates rewritten on chain.<br>${steps}` : (out.drift ?? []).join("<br>") || steps, {
+    const links = `<ul>${out.steps
+      .map((s) => `<li><b class="${s.role}">${s.role === "sourcing" ? "S" : s.role === "support" ? "R" : "T"}</b> ${s.role} replaced ${s.tx ? `<a class="mono" href="${explorerTx(s.tx)}" target="_blank" rel="noreferrer">${s.tx.slice(0, 10)}…${s.tx.slice(-6)}</a>` : s.error ?? ""}</li>`)
+      .join("")}</ul>`;
+    return reply(200, out.status === "Applied" ? "Approved and applied" : `Plan ${out.status}`, out.status === "Applied" ? `Mandates rewritten on chain, the donor before the receiver. The controller verifies them next.${links}` : (out.drift ?? []).join("<br>") || steps, {
       status: out.status,
       steps: out.steps,
       drift: out.drift,
