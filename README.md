@@ -62,18 +62,18 @@ How the planner decides in step 3, with the numbers the demo produces:
 
 `runs/sample-live.jsonl` is a full live run against Metal testnet and the real Airwallex sandbox, with nothing simulated except what the sandbox itself simulates (the inbound deposit and the payout's progress). Replay it with `pnpm replay runs/sample-live.jsonl`. In that run:
 
-- **Setup:** the account was [created](https://testnet.metalntwx.com/tx/0xa614ea6d6ca186fc4812af9f845b19bcf2a9de30262feaf00d94e8885ffb47e4) and [funded with 23 USDZ](https://testnet.metalntwx.com/tx/0xd4402ccd11a7c359141137796fe833cc74a2f167884b0024a8e651a2a0addcca), split 10 / 4 / 9.
+- **Setup:** the account was [created](https://testnet.metalntwx.com/tx/0xdba407f78aecfa2b4ac4ffabfd4285012adc67772d84183d1e2aaae838d4e01f) and [funded with 23 USDZ](https://testnet.metalntwx.com/tx/0x11467297b2228d38d79d56d0bb05ff29ee8fe49c885621e8c81a0a9193772f75), split 10 / 4 / 9.
 - **34 sales** were paid over real x402 with signed orders. Each one bought a real upstream quote under mandate S.
-- **The 4 cent offer was [refused on chain](https://testnet.metalntwx.com/tx/0xf06d0b8bd84d8908f569594b93c9440a363acaabbc5871cef0faa5883c38768a)** under cap S.
+- **The 4 cent offer was [refused on chain](https://testnet.metalntwx.com/tx/0x979befde0cd639b6988b383fe2ac693661fbf98eb1740736f30be434202fe9d1)** under cap S.
 - **The planner** (`claude-haiku-5-5`) picked option B.
 - **The keyring replaced R, then S, on chain:**
-  - [R replaced](https://testnet.metalntwx.com/tx/0x758eb5a366b971ece65008b4708c5df1b74d1ddf1e26c0c4bc2490a7d733aefe)
-  - [S replaced](https://testnet.metalntwx.com/tx/0x7a10f0e5f53ca407ad2cbd2bc1b0070ff3dd79f66ddab10317741461b0170eda), with spend carried over
+  - [R replaced](https://testnet.metalntwx.com/tx/0xa174c6f2efebf705a3724da4419fc9224456f0c5deeaecaa1a19c10b392c570c)
+  - [S replaced](https://testnet.metalntwx.com/tx/0x5507d52bae61c75b8f161842e3bceda1e7a24385da7706e9fb99a4ae584f6184), with spend carried over
 
   `mandate verify` passes for all of them.
 - **Disputes:** support verified each disputed signed order against its payment on chain and refunded four stale charges.
-- **Treasury:** it [swept 8.84 USDZ to the ramp](https://testnet.metalntwx.com/tx/0x55a9a792f2dc0359ffdd6e45392afead7dbf338f8f1c4034d28f97de342cf01c). Airwallex booked a USD 8.84 deposit with the sweep's tx hash as its reference. A MIN_1 quote then bought EUR 7.69 for USD 8.66, and the EUR 5.00 payout (fee EUR 2.69) went SENT, then PAID. The executor was killed after `transfers/create`; the retry with the same `request_id` loaded the same transfer.
-- **Drill:** the compromised support agent's 10 USDZ payout was [refused and recorded on chain](https://testnet.metalntwx.com/tx/0x3e265aa3cb69071a79fcd6973ace47cf0b7b1674cf03a0944d9342887a0e5294).
+- **Treasury:** it [swept 8.82 USDZ to the ramp](https://testnet.metalntwx.com/tx/0x53985a70d80062b239e1d24825001477d022876f3b600c3500d97306a6c3c1b4). Airwallex booked a USD 8.82 deposit with the sweep's tx hash as its reference. A MIN_1 quote then bought EUR 7.75 for USD 8.71, and the EUR 5.00 payout (fee EUR 2.70) went SENT, then PAID; EUR 0.05 stayed in the account. The executor was killed after `transfers/create`; the retry with the same `request_id` loaded the same transfer.
+- **Drill:** the compromised support agent's 10 USDZ payout was [refused and recorded on chain](https://testnet.metalntwx.com/tx/0x0bffae6117cdf8d496c1ce3393527be77bba3bcbd1164436542743a0c5e8dc05).
 - **Books:** all seven checks pass against the live facilitator, the chain and Airwallex, to the cent.
 
 ---
