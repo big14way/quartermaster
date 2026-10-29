@@ -10,7 +10,7 @@ export const STEPS = [
   { id: "approve", title: "Approval and mandate rewrite", narration: "The founder approves a change bound to its exact numbers. The keyring checks live state, replaces R and then S on chain, and both mandates verify. Sourcing resumes at the new price." },
   { id: "disputes", title: "Disputed batch", narration: "A buyer disputes five charges. Support checks each signed order against the chain and each delivery record, refunds the stale ones under R, and rejects the fresh one with evidence." },
   { id: "treasury", title: "Earnings to Airwallex, licence fee paid", narration: "Treasury sweeps to the ramp under T, lands it as a USD deposit referenced by the tx hash, converts on a MIN_1 quote and pays €5.00. The executor is killed after transfer create; the retry finds the same transfer." },
-  { id: "drill", title: "Compromised agent drill", narration: "A compromised support agent tries to send itself 10 USDZ. The account refuses it on chain with mandate_cap_exceeded." },
+  { id: "drill", title: "Compromised agent drill", narration: "A compromised support agent tries to pay 10 USDZ to an outside address. The account refuses it on chain with mandate_cap_exceeded." },
   { id: "close", title: "Books close", narration: "Seven checks: Metal settlements, every mandate, the account balance, sweeps against deposits, and the USD and EUR accounts against the ledger, then I1–I5. The event log's hash chain is verified." },
 ] as const;
 

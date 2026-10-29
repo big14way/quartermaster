@@ -45,7 +45,7 @@ The scenario follows the kit:
 | 4 | **Approval and mandate rewrite** | The founder approves on the keyring's own page with a PIN that only the keyring holds. The keyring rebuilds the approval record from live chain state and a fresh 402 probe, and refuses on any drift. It then replaces **R (donor) before S (receiver)**. Both mandates pass `mandate verify`, I1–I5 hold, and sourcing resumes at the new price. |
 | 5 | **Disputed batch** | A buyer disputes five charges by tx hash. Support verifies each signed order against the payment on chain and checks the delivery record. It refunds the four stale ones under R, one payment id per refund, and rejects the fresh one with evidence. |
 | 6 | **Earnings to Airwallex, licence fee paid** | Treasury sweeps to the ramp address under T, which can pay nobody else. It simulates a USD deposit whose `reference` is the sweep's tx hash, checking for an existing one first. It then takes a `MIN_1` quote, converts USD→EUR, and creates the transfer with `request_id`. **Fault drill:** the executor is killed after `transfers/create`. The retry gets `duplicate_request_id` and loads the same transfer, so nothing is paid twice. |
-| 7 | **Compromised agent drill** | A compromised support agent tries to send itself 10 USDZ. The account refuses on chain with `mandate_cap_exceeded`, and the refusal is recorded. |
+| 7 | **Compromised agent drill** | A compromised support agent tries to pay 10 USDZ to an outside address. The account refuses on chain with `mandate_cap_exceeded`, and the refusal is recorded. |
 | 8 | **Books close** | Seven reconciliation checks (below) run, plus a verification of the event log's hash chain. |
 
 How the planner decides in step 3, with the numbers the demo produces:
