@@ -1,8 +1,12 @@
 # Quartermaster
 
+[![ci](https://github.com/big14way/quartermaster/actions/workflows/ci.yml/badge.svg)](https://github.com/big14way/quartermaster/actions/workflows/ci.yml)
+
 **Three x402 agents, one Metal account, budgets that rebalance when supplier prices move.**
 
-**Demo video (4 min):** [youtu.be/9NyHmAIm7oc](https://youtu.be/9NyHmAIm7oc). It is one live run on Metal testnet and the Airwallex sandbox, the run in [`runs/sample-live.jsonl`](runs/sample-live.jsonl).
+**Demo video (4 min):** [youtu.be/9NyHmAIm7oc](https://youtu.be/9NyHmAIm7oc). It shows one live run on Metal testnet and the Airwallex sandbox; the run's full event log is [`runs/sample-live.jsonl`](runs/sample-live.jsonl).
+
+![The live dashboard after the supplier raised its price: the purchase refused on chain, the options computed in code, and Claude Haiku's explanation for the founder](docs/img/decision.jpg)
 
 Quartermaster runs a pay-per-call market data API with three AI agents that share one Metal account. Each agent spends under its own on-chain mandate:
 
@@ -22,7 +26,28 @@ At the end, the books reconcile Metal against Airwallex to the cent.
 
 The model proposes and explains. Code and the chain decide.
 
-Built for the Airwallex hackathon, **Kit 11: x402 Business Agents**, targeting the Metal Award.
+## For judges: Kit 11, step by step
+
+Built for the Airwallex Agentic Banking Hackathon, **Kit 11: x402 Business Agents**, targeting the Metal Award. Each part of the kit's flow, with its proof from the live run:
+
+| The kit asks to | What Quartermaster does | Proof from the live run |
+|---|---|---|
+| create your account, its three mandates, and a customer's account and mandate | The keyring creates the account and binds mandates S, R and T. A customer signs up with its own account and three buyer agents. | Account [created](https://testnet.metalntwx.com/tx/0xdba407f78aecfa2b4ac4ffabfd4285012adc67772d84183d1e2aaae838d4e01f) and [funded with 23 USDZ](https://testnet.metalntwx.com/tx/0x11467297b2228d38d79d56d0bb05ff29ee8fe49c885621e8c81a0a9193772f75) |
+| run the upstream provider and a query route that requires a signed order | Feed A and Feed B sell quotes over x402. Quartermaster's paid route requires a signed order, and each sale buys a quote under mandate S. | 34 sales; the facilitator's settlements match the sales booked |
+| raise the upstream price and show the refusal | Feed A goes from 2 to 4 cents. The account refuses the next purchase; buyers get a 503 and pay nothing. | [Refused on chain](https://testnet.metalntwx.com/tx/0x979befde0cd639b6988b383fe2ac693661fbf98eb1740736f30be434202fe9d1) with `mandate_cap_exceeded` |
+| replace the mandates | Code computes the options, Claude Haiku explains the pick, the founder approves a hash-bound record, and the keyring replaces R, then S. | [R replaced](https://testnet.metalntwx.com/tx/0xa174c6f2efebf705a3724da4419fc9224456f0c5deeaecaa1a19c10b392c570c), [S replaced](https://testnet.metalntwx.com/tx/0x5507d52bae61c75b8f161842e3bceda1e7a24385da7706e9fb99a4ae584f6184) |
+| resolve the disputed batch | Support checks each disputed signed order against its payment on chain and the delivery record. | 4 stale charges refunded under R, 1 rejected with evidence |
+| move earnings to Airwallex and pay the licence fee | Treasury sweeps to the ramp under T. Airwallex books a USD deposit referenced by the sweep's tx hash, converts on a MIN_1 quote and pays EUR 5.00. | [Sweep](https://testnet.metalntwx.com/tx/0x53985a70d80062b239e1d24825001477d022876f3b600c3500d97306a6c3c1b4); payout PAID in the [Airwallex sandbox](#verified-on-metal-testnet) |
+
+Beyond the kit, it also runs:
+
+- **A compromised-agent drill.** The support agent's 10 USDZ payout to an outside address is [refused on chain](https://testnet.metalntwx.com/tx/0x0bffae6117cdf8d496c1ce3393527be77bba3bcbd1164436542743a0c5e8dc05).
+- **A crash drill.** The executor is killed mid-payment, and the retry finds the same Airwallex transfer, so nothing is paid twice.
+- **Seven reconciliation checks** that close Metal, the ledger and Airwallex to the cent.
+
+![The books after the live run: seven checks across Metal, the ledger and Airwallex, all equal to the cent](docs/img/books.jpg)
+
+### Run it in a minute
 
 ```
 pnpm install
@@ -30,19 +55,21 @@ pnpm demo --headless      # the whole story in the terminal, offline, no keys
 pnpm demo                 # the same story on the dashboard at http://127.0.0.1:4000
 ```
 
+Offline mode needs no keys and labels every simulated surface. To run against Metal testnet and the Airwallex sandbox, see [Live](#live-metal-testnet-with-or-without-the-airwallex-sandbox).
+
 ---
 
 ## The story
 
 The scenario follows the kit:
 
-- The account holds **20 USDZ**, split across sourcing (10), support (4) and treasury (6). Against the real Airwallex sandbox it holds **23 USDZ** (10, 4, 9): the sandbox charges EUR 2.69 to pay the invoice, not the kit page's EUR 0.15, so treasury needs 9.
+- The account holds **20 USDZ**, split across sourcing (10), support (4) and treasury (6). Against the real Airwallex sandbox it holds **23 USDZ** (10, 4, 9): the sandbox charges about EUR 2.70 to pay the invoice, not the kit page's EUR 0.15, so treasury needs 9.
 - A query sells for **5 cents**. Its upstream data costs **2 cents**, under a **3 cent** cap.
 
 | # | Step | What happens |
 |---|---|---|
 | 1 | **Accounts, mandates and the opening split** | The controller derives the split from first principles. Treasury gets the €5.00 licence fee plus the transfer fee at the live EUR/USD rate, plus a 2% buffer. Support gets more than the refund floor. Sourcing gets the rest. The keyring creates the account, funds it and binds three mandates. A customer business signs up with three buyer agents. The licence invoice is read and validated, including the IBAN checksum. |
-| 2 | **Selling queries** | Buyer agents pay 5 cents a call over x402 with a **signed order**. For each sale, the sourcing agent buys a quote from Feed A under mandate S. Every sale is stored with its signed order, its tx hash and what was delivered. **Timeout drill:** one upstream settlement comes back `settlement_in_doubt`. The agent treats it as unconfirmed and looks it up in the facilitator's `/settlements` by nonce, books it once and never pays again blind. Feed A then serves stale data for a few calls. |
+| 2 | **Selling queries** | Buyer agents pay 5 cents a call over x402 with a **signed order**. For each sale, the sourcing agent buys a quote from Feed A under mandate S. Every sale is stored with its signed order, its tx hash and what was delivered. **Timeout drill** (offline, where the simnet can inject the fault): one upstream settlement comes back `settlement_in_doubt`. The agent treats it as unconfirmed and looks it up in the facilitator's `/settlements` by nonce, books it once and never pays again blind. Feed A then serves stale data for a few calls. |
 | 3 | **Supplier raises its price** | Feed A goes to 4 cents and Feed B to 5. The sourcing agent reads the price from the 402 on every request. It refuses before signing, and records the refusal on chain (`mandate_cap_exceeded`). Buyers get a 503 and are **not charged**. Code enumerates options A–E with exact numbers, and the planner ranks them. |
 | 4 | **Approval and mandate rewrite** | The founder approves on the keyring's own page with a PIN that only the keyring holds. The keyring rebuilds the approval record from live chain state and a fresh 402 probe, and refuses on any drift. It then replaces **R (donor) before S (receiver)**. Both mandates pass `mandate verify`, I1–I5 hold, and sourcing resumes at the new price. |
 | 5 | **Disputed batch** | A buyer disputes five charges by tx hash. Support verifies each signed order against the payment on chain and checks the delivery record. It refunds the four stale ones under R, one payment id per refund, and rejects the fresh one with evidence. |
@@ -50,13 +77,13 @@ The scenario follows the kit:
 | 7 | **Compromised agent drill** | A compromised support agent tries to pay 10 USDZ to an outside address. The account refuses on chain with `mandate_cap_exceeded`, and the refusal is recorded. |
 | 8 | **Books close** | Seven reconciliation checks (below) run, plus a verification of the event log's hash chain. |
 
-How the planner decides in step 3, with the numbers the demo produces:
+How the planner decided in step 3 of the live run:
 
 | Option | | Why |
 |---|---|---|
 | A. Switch to Feed B | ✗ | Feed B asks 0.05, above cap S 0.03 and above the 0.04 margin limit. |
 | **B. Raise cap S to 0.04, +0.50 from refunds** | **✓** | Highest margin that leaves the refund floor intact. Needs approval because the cap rises 33%. |
-| C. Raise cap S to 0.04, +0.50 from treasury | ✗ | It would leave the licence fee 0.22 USDZ (4%) short at the live rate. |
+| C. Raise cap S to 0.04, +0.50 from treasury | ✗ | It would leave the licence fee 0.32 USDZ (4%) short at the live rate. |
 | D. Pass the price through | ✗ | Cap S stays 0.03, so the account still refuses the purchase. |
 | E. Pause and escalate | ✓ | Always possible; loses about 6.00 USDZ of sales an hour. |
 
@@ -77,6 +104,10 @@ How the planner decides in step 3, with the numbers the demo produces:
 - **Treasury:** it [swept 8.82 USDZ to the ramp](https://testnet.metalntwx.com/tx/0x53985a70d80062b239e1d24825001477d022876f3b600c3500d97306a6c3c1b4). Airwallex booked a USD 8.82 deposit with the sweep's tx hash as its reference. A MIN_1 quote then bought EUR 7.75 for USD 8.71, and the EUR 5.00 payout (fee EUR 2.70) went SENT, then PAID; EUR 0.05 stayed in the account. The executor was killed after `transfers/create`; the retry with the same `request_id` loaded the same transfer.
 - **Drill:** the compromised support agent's 10 USDZ payout was [refused and recorded on chain](https://testnet.metalntwx.com/tx/0x0bffae6117cdf8d496c1ce3393527be77bba3bcbd1164436542743a0c5e8dc05).
 - **Books:** all seven checks pass against the live facilitator, the chain and Airwallex, to the cent.
+
+The same run in the Airwallex sandbox's own activity log, newest first: the ramp deposit (its reference is the sweep's Metal tx hash), the USD→EUR conversion, then the EUR 5.00 payment and its EUR 2.70 fee.
+
+![The live run in the Airwallex sandbox: deposit from the Quartermaster ramp, conversion, payment and fee](docs/img/airwallex.jpg)
 
 ---
 
@@ -121,7 +152,7 @@ flowchart LR
 **Custody rules** (enforced by process boundaries, not by prompts):
 
 - **Only the keyring holds the owner key.** It has no model in it, and it accepts two inputs:
-  - the opening allocation, which it checks against the 20 USDZ total itself;
+  - the opening allocation, which it checks against the configured total itself (20 USDZ, or 23 against real Airwallex);
   - a proposal approved on its own page with the founder PIN.
 
   The controller and the planner can propose. They cannot approve.
@@ -173,10 +204,10 @@ The approval page shows exactly these fields. Before sending anything, the keyri
 3. On-chain account balance = ledger.
 4. Σ ramp sweeps (USDZ) = Σ settled Airwallex deposits whose reference is a sweep tx (USD, 1:1).
 5. USD deposits − conversion sells = change in the USD balance since setup = ledger.
-6. EUR bought = paid out (licence fee + transfer fee) + change in the EUR balance since setup; the transfer is PAID; licence payable = 0. Treasury buys the fee estimate plus the FX buffer, because the sandbox's EUR fee moves with the rate, so a few cents can stay in the account.
-
-Checks 5 and 6 measure from the balances recorded at setup, because a sandbox account outlives a run and comes with seeded balances. Neither balance may end below where it started: a run spends only what it brought in.
+6. EUR bought = paid out (licence fee + transfer fee) + change in the EUR balance since setup; the transfer is PAID; licence payable = 0.
 7. I1–I5 hold.
+
+Checks 5 and 6 measure from the balances recorded at setup, because a sandbox account outlives a run and comes with seeded balances. Neither balance may end below where it started: a run spends only what it brought in. Treasury buys the fee estimate plus the FX buffer, because the sandbox's EUR fee moves with the rate, so a few cents can stay in the EUR account.
 
 On top of these, the event log's hash chain must verify.
 
@@ -247,7 +278,7 @@ Then fill in `.env` (copy `.env.example`):
 | `QM_FUNDER_KEY` | `.metal/rpc-payer.json`. Setup is paid by exact USDZ transfers from this key instead of the faucet, which allows one grant a minute and ten a day per IP. A run uses about 29 testnet USDZ. |
 | `QM_RAMP_ADDRESS` | the address of `.metal/ramp.json` |
 | `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_API_KEY` | sandbox keys. Leave them empty to keep Airwallex on the simulator, which every surface labels. A scoped key on the account needs read on Balances and Deposits, read and write on Global Accounts, Beneficiaries, Transfers and Conversion, and write on Simulations. |
-| `QM_TRANSFER_FEE_EUR` | the payout fee to budget for against real Airwallex. The sandbox charged EUR 2.69 for a LOCAL payout to a DE IBAN, not the kit page's EUR 0.15, so set `2.69`. Treasury then gets about 9 USDZ instead of 6. |
+| `QM_TRANSFER_FEE_EUR` | the payout fee to budget for against real Airwallex. The sandbox charges EUR 2.69 to 2.70 for a LOCAL payout to a DE IBAN, depending on the rate, not the kit page's EUR 0.15, so set `2.69`. Treasury buys it plus a 2% buffer and gets about 9 USDZ instead of 6. |
 | `QM_ALLOCATION_USDZ` | the total the three budgets share against real Airwallex. Set `23`, so sourcing keeps its 10 next to treasury's 9 and the price-rise step can still move 0.50 USDZ from refunds. With 20, sourcing gets 7 and the planner correctly pauses and escalates instead. |
 | `ANTHROPIC_API_KEY` | optional. The planner and extraction use `claude-haiku-5-5`. |
 
@@ -286,12 +317,12 @@ packages/
   planner/      Claude planner and extraction, recorded for replay
   runtime/      mode switch, file layout, HTTP helpers, event reporting
 scripts/        demo supervisor, replay, live check
-runs/           event logs; sample-offline.jsonl is a recorded run
+runs/           event logs; sample-live.jsonl is the live run in the video, sample-offline.jsonl an offline run
 ```
 
 Tests: run `pnpm test` and `pnpm test:e2e`. CI runs both on every push.
 
-- `pnpm test` runs 47 unit tests: money, hashing, the ledger, the Airwallex client and the simulators, the policy math and approval drift, webhook dedupe, the late-status guard and FAILED-after-PAID reversal.
+- `pnpm test` runs 49 unit tests: money, hashing, event ordering, the ledger, the Airwallex client and the simulators, the policy math and approval drift, webhook dedupe, the late-status guard and FAILED-after-PAID reversal.
 - `pnpm test:e2e` runs the whole offline story, which must reconcile.
 
 ## Licence
